@@ -8,12 +8,17 @@ extern crate surface_dial_rs;
 
 use iced::{Settings, Column, Element, Text, Application, executor, Command, window, Subscription, time, Length, Alignment};
 
-mod dial_views;
+mod views; 
 pub mod arc_input;
 
-struct Counter<'a> {
+use crate::views::arc_input_video_view::ArcInputVideoView;
+use crate::views::info_view::InfoView;
+use crate::views::ScreenCommand;
+
+struct DynBaseProgram<'a> {
     dial: SurfaceDial<'a>,
-    current_window: Box<dyn dial_views::DialView>
+    current_screen: usize,
+    screens: Vec<Box<dyn views::DialView>>
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -21,7 +26,7 @@ pub enum Message {
     ProcessDialEvents,
 }
 
-impl Application for Counter<'_> {
+impl Application for DynBaseProgram<'_> {
     type Executor = executor::Default;
     type Message = Message;
     type Flags = ();
@@ -31,11 +36,16 @@ impl Application for Counter<'_> {
 
         dial.set_subdivisions(60);
 
-        let initial_window = Box::new(dial_views::ArcInputVideoView::new());
+        let screens: Vec<Box<dyn views::DialView>> = vec![
+            Box::new(InfoView::new("Test".to_string(), "This is another test.".to_string())),
+            Box::new(ArcInputVideoView::new()),
+            Box::new(InfoView::new("All done".to_string(), "Thank you for watching a video. You win.\n\nHooray!".to_string())),
+        ];
 
-        (Counter {
+        (DynBaseProgram {
             dial,
-            current_window: initial_window
+            current_screen: 0,
+            screens
         }, Command::none())
     }
 
@@ -47,37 +57,27 @@ impl Application for Counter<'_> {
         match message {
             Message::ProcessDialEvents => {
                 let result = self.dial.pop_event();
+                let command = self.screens[self.current_screen].update(result);
 
-                match result {
-                    Some(e) => {
-                        if let TopLevelEvent::DialEvent(DialEvent::Rotate { direction, velocity: _ }) = &e {
-                            match direction {
-                                DialDirection::Clockwise => {
-                                    if self.value + 1 <= self.max_value { self.value += 1 }
-                                },
-                                DialDirection::Counterclockwise => {
-                                    if self.value > self.min_value { self.value -= 1 }
-                                }
-                            }
+                match command {
+                    ScreenCommand::NextScreen => {
+                        if self.current_screen + 1 < self.screens.len() {
+                            self.screens[self.current_screen].hide();
 
-                            self.arc_input.set_value(self.value);
+                            self.current_screen += 1;
+
+                            self.screens[self.current_screen].init();
+                            self.screens[self.current_screen].show();
                         }
+                    },
+                    ScreenCommand::PreviousScreen => {
+                        if self.current_screen > 0 {
+                            self.screens[self.current_screen].hide();
+                            
+                            self.current_screen -= 1;
 
-                        if let TopLevelEvent::DialEvent(DialEvent::Button { pressed }) = &e {
-                            if *pressed {
-                                self.value = 0;
-                                self.arc_input.set_value(self.value);
-
-                                if self.video.paused() {
-                                    self.video.set_paused(false);
-                                } else {
-                                    self.video.set_paused(true);
-                                }
-                            }
-                        }
-
-                        if let TopLevelEvent::ConnectionEvent(c) = e {
-                            println!("Connection event: {:?}", c);
+                            self.screens[self.current_screen].init();
+                            self.screens[self.current_screen].show();
                         }
                     },
                     _ => {}
@@ -95,7 +95,7 @@ impl Application for Counter<'_> {
     }
 
     fn view(&mut self) -> Element<Message> {
-        self.current_window.view()
+        self.screens[self.current_screen].view()
     }
 
     fn mode(&self) -> window::Mode {
@@ -108,5 +108,5 @@ impl Application for Counter<'_> {
 }
 
 pub fn main() -> iced::Result {
-    Counter::run(Settings::default())
+    DynBaseProgram::run(Settings::default())
 }
