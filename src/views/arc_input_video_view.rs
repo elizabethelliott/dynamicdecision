@@ -1,4 +1,5 @@
-use std::time::Duration;
+use std::time::Instant;
+use std::time::SystemTime;
 
 use iced::Alignment;
 use iced::Column;
@@ -6,7 +7,6 @@ use iced::Element;
 
 use iced::Length;
 use iced::Text;
-use iced_native::image::Data;
 use iced_video_player::VideoPlayer;
 use url::Url;
 
@@ -22,13 +22,13 @@ const MIN_VALUE: i32 = -10;
 const MAX_VALUE: i32 = 10;
 
 struct DataStructure {
-    final_decision: f32,
+    final_decision: i32,
     data_points: Vec<DataPoint>
 }
 
 struct DataPoint {
-    timestamp: Duration,
-    value: f32
+    timestamp: SystemTime,
+    value: i32
 }
 
 pub struct ArcInputVideoView {
@@ -37,15 +37,16 @@ pub struct ArcInputVideoView {
     min_value: i32,
     max_value: i32,
     interim_decision: i32,
-    last_decision: i32,
     video: VideoPlayer,
     data: DataStructure,
+    timer: Option<Instant>,
+    finished: bool
 }
 
 impl DataStructure {
     pub fn new() -> DataStructure {
         DataStructure { 
-            final_decision: 0.0,
+            final_decision: 0,
             data_points: Vec::new() 
         }
     }
@@ -54,8 +55,8 @@ impl DataStructure {
 impl ArcInputVideoView {
     pub fn new() -> ArcInputVideoView {
         let mut arc_input = ArcInput::new(MIN_VALUE, MAX_VALUE, 0, 90.0);
-        arc_input.set_left_label("".to_string());
-        arc_input.set_right_label("".to_string());
+        arc_input.set_left_label("Lie".to_string());
+        arc_input.set_right_label("Truth".to_string());
 
         ArcInputVideoView {
             arc_input,
@@ -63,8 +64,9 @@ impl ArcInputVideoView {
             min_value: MIN_VALUE,
             max_value: MAX_VALUE,
             interim_decision: 0,
-            last_decision: 0,
             data: DataStructure::new(),
+            timer: None,
+            finished: false,
             video: VideoPlayer::new(&Url::from_file_path(std::path::PathBuf::from(file!()).parent().unwrap().join("../../videos/bad-guy.mp4").canonicalize().unwrap()).unwrap(), false).unwrap(), }
     }
 }
@@ -74,6 +76,8 @@ impl DialView for ArcInputVideoView {
         self.video.set_paused(true);
         self.value = 0;
         self.arc_input.set_value(0);
+        self.data.data_points.clear();
+        self.data.final_decision = 0;
     }
 
     fn update(&mut self, msg: Option<TopLevelEvent>) -> ScreenCommand {
@@ -82,15 +86,20 @@ impl DialView for ArcInputVideoView {
                 if let TopLevelEvent::DialEvent(DialEvent::Rotate { direction, velocity: _ }) = &e {
                     match direction {
                         DialDirection::Clockwise => {
-                            if self.value + 1 <= self.max_value { 
-                                self.value += 1 
+                            if !self.arc_input.is_disabled() && self.value + 1 <= self.max_value { 
+                                self.value += 1;
                             }
                         },
                         DialDirection::Counterclockwise => {
-                            if self.value > self.min_value { 
-                                self.value -= 1 
+                            if !self.arc_input.is_disabled() && self.value > self.min_value { 
+                                self.value -= 1;
                             }
                         }
+                    }
+
+                    if self.interim_decision != self.value {
+                        self.interim_decision = self.value;
+                        self.timer = Some(Instant::now());
                     }
 
                     self.arc_input.set_value(self.value);
@@ -98,7 +107,19 @@ impl DialView for ArcInputVideoView {
 
                 if let TopLevelEvent::DialEvent(DialEvent::Button { pressed }) = &e {
                     if *pressed {
-                        return ScreenCommand::NextScreen;
+                        if !self.finished {
+                            self.data.final_decision = self.value;
+                            self.timer = None;
+
+                            self.arc_input.set_disabled(true);
+                            self.video.set_paused(true);
+
+                            self.finished = true;
+
+                            println!("The user made a decision! {}", self.data.final_decision);
+                        } else {
+                            return ScreenCommand::NextScreen;
+                        }
                     }
                 }
 
@@ -107,6 +128,19 @@ impl DialView for ArcInputVideoView {
                 }
             },
             _ => {}
+        }
+
+        // Wait to record a point if the user doesn't move the dial for 500ms
+        if let Some(timer) = self.timer {
+            if timer.elapsed().as_millis() > 500 {
+                self.data.data_points.push(DataPoint {
+                    timestamp: SystemTime::now(),
+                    value: self.value,
+                });
+                self.timer = None;
+
+                println!("Stored a point! {}", self.value);
+            }
         }
 
         ScreenCommand::None
@@ -130,5 +164,9 @@ impl DialView for ArcInputVideoView {
 
     fn hide(&mut self) {
         self.video.set_paused(true);
+    }
+
+    fn data(&self) -> Option<Box<dyn super::ExperimentData>> {
+        None
     }
 }

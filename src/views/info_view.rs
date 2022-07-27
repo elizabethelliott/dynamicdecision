@@ -66,4 +66,8 @@ impl DialView for InfoView {
     fn hide(&mut self) {
         
     }
+
+    fn data(&self) -> Option<Box<dyn super::ExperimentData>> {
+        None
+    }
 }

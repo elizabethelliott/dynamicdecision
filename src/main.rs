@@ -36,11 +36,15 @@ impl Application for DynBaseProgram<'_> {
 
         dial.set_subdivisions(60);
 
-        let screens: Vec<Box<dyn views::DialView>> = vec![
+        let mut screens: Vec<Box<dyn views::DialView>> = vec![
             Box::new(InfoView::new("Test".to_string(), "This is another test.".to_string())),
             Box::new(ArcInputVideoView::new()),
             Box::new(InfoView::new("All done".to_string(), "Thank you for watching a video. You win.\n\nHooray!".to_string())),
         ];
+
+        for s in screens.iter_mut() {
+            s.init();
+        }
 
         (DynBaseProgram {
             dial,

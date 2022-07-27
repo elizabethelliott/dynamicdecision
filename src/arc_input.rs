@@ -17,6 +17,7 @@ pub struct ArcInput {
     right_label: String,
     radius: f32,
     arc: Cache,
+    disabled: bool,
 }
 
 impl ArcInput {
@@ -29,6 +30,7 @@ impl ArcInput {
             right_label: "".to_string(),
             radius,
             arc: Cache::default(),
+            disabled: false
         }
     }
 
@@ -63,7 +65,16 @@ impl ArcInput {
     }
 
     pub fn request_redraw(&mut self) {
-        self.arc.clear()
+        self.arc.clear();
+    }
+
+    pub fn set_disabled(&mut self, disable: bool) {
+        self.disabled = disable;
+        self.request_redraw();
+    }
+
+    pub fn is_disabled(&self) -> bool {
+        self.disabled
     }
 }
 
@@ -121,8 +132,14 @@ impl canvas::Program<Message> for ArcInput {
             //     Color::from_rgb(0.8, 0.0, 0.0)
             // };
 
+            let fill_color = if self.disabled {
+                Color::from_rgb(0.5, 0.5, 0.8)
+            } else {
+                Color::from_rgb(0.0, 0.0, 0.8)
+            };
+
             let fill_stroke = Stroke {
-                color: Color::from_rgb(0.0, 0.0, 0.8),
+                color: fill_color,
                 width: 2.0,
                 line_cap: LineCap::Round,
                 ..Stroke::default()
