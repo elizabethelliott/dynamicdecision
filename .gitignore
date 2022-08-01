@@ -1,3 +1,5 @@
 /.vscode
 /target
 /videos
+/output
+*.csv

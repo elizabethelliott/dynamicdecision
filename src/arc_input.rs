@@ -18,6 +18,7 @@ pub struct ArcInput {
     radius: f32,
     arc: Cache,
     disabled: bool,
+    scale: f32,
 }
 
 impl ArcInput {
@@ -30,12 +31,14 @@ impl ArcInput {
             right_label: "".to_string(),
             radius,
             arc: Cache::default(),
-            disabled: false
+            disabled: false,
+            scale: 1.0,
         }
     }
 
     pub fn view(&mut self) -> Element<Message> {
-        let rad = self.radius * 1.5;
+        let rad = 1.2 * self.radius * self.scale;
+        let scale = self.scale;
         let left_label = self.left_label.clone();
         let right_label = self.right_label.clone();
 
@@ -45,8 +48,8 @@ impl ArcInput {
                 .height(Length::Units(rad as u16)))
             .push(Row::new()
                 .width(Length::Units(rad as u16))
-                .push(Text::new(left_label).size(10).width(Length::Fill))
-                .push(Text::new(right_label).size(10).horizontal_alignment(Horizontal::Right).width(Length::Fill)))
+                .push(Text::new(left_label).size((10.0 * scale) as u16).width(Length::Fill))
+                .push(Text::new(right_label).size((10.0 * scale) as u16).horizontal_alignment(Horizontal::Right).width(Length::Fill)))
             .into()
         
     }
@@ -73,6 +76,10 @@ impl ArcInput {
         self.request_redraw();
     }
 
+    pub fn scale(&mut self, scale: f32) {
+        self.scale = scale;
+    }
+
     pub fn is_disabled(&self) -> bool {
         self.disabled
     }
@@ -89,8 +96,8 @@ impl canvas::Program<Message> for ArcInput {
             let mut fill_build = Builder::new();
 
             arc_build.ellipse(Elliptical {
-                center: Point::new(bounds.width/2.0, self.radius as f32),
-                radii: Vector::new(self.radius/2.0, self.radius/2.0),
+                center: Point::new(bounds.width/2.0, bounds.height/2.0),
+                radii: Vector::new(self.scale * self.radius/2.0, self.scale * self.radius/2.0),
                 rotation: 1.57,
                 start_angle: 0.785,
                 end_angle: 5.497,
@@ -107,8 +114,8 @@ impl canvas::Program<Message> for ArcInput {
             let proportion = (((safe_value as f32 + self.max_value as f32) / (self.max_value - self.min_value) as f32) * 2.0) - 1.0;
 
             fill_build.ellipse(Elliptical {
-                center: Point::new(bounds.width/2.0, self.radius as f32),
-                radii: Vector::new(self.radius/2.0, self.radius/2.0),
+                center: Point::new(bounds.width/2.0, bounds.height/2.0),
+                radii: Vector::new(self.scale * self.radius/2.0, self.scale * self.radius/2.0),
                 rotation: 1.57,
                 start_angle: 3.141,
                 end_angle: 3.141 + (2.356 * proportion),

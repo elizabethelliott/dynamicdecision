@@ -1,19 +1,23 @@
-use std::{time::Duration};
-use url::Url;
+use std::borrow::Borrow;
+use std::time::Duration;
 
-use surface_dial_rs::{SurfaceDial, events::TopLevelEvent, events::DialEvent, events::DialDirection};
+use surface_dial_rs::SurfaceDial;
 
 extern crate iced;
 extern crate surface_dial_rs;
 
-use iced::{Settings, Column, Element, Text, Application, executor, Command, window, Subscription, time, Length, Alignment};
+use iced::{Settings, Element, Application, executor, Command, window, Subscription, time};
 
 mod views; 
+mod data;
 pub mod arc_input;
 
+use crate::views::arc_dichotomous_view::ArcDichotomousView;
 use crate::views::arc_input_video_view::ArcInputVideoView;
 use crate::views::info_view::InfoView;
 use crate::views::ScreenCommand;
+
+use crate::data::write_data_file;
 
 struct DynBaseProgram<'a> {
     dial: SurfaceDial<'a>,
@@ -24,6 +28,16 @@ struct DynBaseProgram<'a> {
 #[derive(Debug, Clone, Copy)]
 pub enum Message {
     ProcessDialEvents,
+}
+
+impl DynBaseProgram<'_> {
+    fn update_dial_settings(&mut self, settings: views::ArcSettings) {
+        if settings.divisions > 0 {
+            self.dial.set_subdivisions(settings.divisions);
+        } else {
+            self.dial.disable_subdivisions();
+        }
+    }
 }
 
 impl Application for DynBaseProgram<'_> {
@@ -39,7 +53,8 @@ impl Application for DynBaseProgram<'_> {
         let mut screens: Vec<Box<dyn views::DialView>> = vec![
             Box::new(InfoView::new("Test".to_string(), "This is another test.".to_string())),
             Box::new(ArcInputVideoView::new()),
-            Box::new(InfoView::new("All done".to_string(), "Thank you for watching a video. You win.\n\nHooray!".to_string())),
+            Box::new(ArcDichotomousView::new()),
+            Box::new(InfoView::new("Finished".to_string(), "Thank you for watching a video.".to_string())),
         ];
 
         for s in screens.iter_mut() {
@@ -68,10 +83,19 @@ impl Application for DynBaseProgram<'_> {
                         if self.current_screen + 1 < self.screens.len() {
                             self.screens[self.current_screen].hide();
 
+                            // If this screen has data to write, export it
+                            if let Some(experiment_data) = self.screens[self.current_screen].data() {
+                                write_data_file(0, experiment_data);
+                            }
+
                             self.current_screen += 1;
 
                             self.screens[self.current_screen].init();
                             self.screens[self.current_screen].show();
+
+                            if let Some(dial_settings) = self.screens[self.current_screen].arc_settings() {
+                                self.update_dial_settings(dial_settings);
+                            }
                         }
                     },
                     ScreenCommand::PreviousScreen => {
@@ -82,6 +106,10 @@ impl Application for DynBaseProgram<'_> {
 
                             self.screens[self.current_screen].init();
                             self.screens[self.current_screen].show();
+
+                            if let Some(dial_settings) = self.screens[self.current_screen].arc_settings() {
+                                self.update_dial_settings(dial_settings);
+                            }
                         }
                     },
                     _ => {}

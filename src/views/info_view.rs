@@ -67,7 +67,13 @@ impl DialView for InfoView {
         
     }
 
-    fn data(&self) -> Option<Box<dyn super::ExperimentData>> {
+    fn data(&self) -> Option<Box<&dyn super::ExperimentData>> {
         None
+    }
+
+    fn arc_settings(&self) -> Option<super::ArcSettings> {
+        Some(super::ArcSettings {
+            divisions: 0
+        })
     }
 }
