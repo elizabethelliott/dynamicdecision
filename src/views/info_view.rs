@@ -56,7 +56,8 @@ impl DialView for InfoView {
             .padding(20)
             .align_items(Alignment::Center)
             .push(Text::new(title).size(30))
-            .push(Text::new(message).size(18).height(Length::Fill).vertical_alignment(Vertical::Center))
+            .push(Text::new("\n").size(22).height(Length::Shrink))
+            .push(Text::new(message).size(22).height(Length::Fill))
             .into()
     }
 

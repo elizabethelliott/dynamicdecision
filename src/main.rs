@@ -55,7 +55,15 @@ impl Application for DynBaseProgram<'_> {
 
         let mut screens: Vec<Box<dyn views::DialView>> = vec![
             Box::new(ParticipantIdView::new()),
-            Box::new(InfoView::new("Test".to_string(), "This is another test.".to_string())),
+            Box::new(InfoView::new("Instructions".to_string(), "In this study, you will watch video clips of different people providing an alibi, and answering
+questions provided by an experimenter. Some people will be lying, whereas others will be telling
+the truth. The clips will be randomly presented, so that each adult has a 50-50 likelihood of
+telling the truth or lying. The segments are also independent. This means that if the person in
+Clip 1 is telling the truth, there is still a 50-50 chance that the person in Clip 2 is telling the truth
+or lying, and so on.\n\n
+As you watch the video, please decide, as quickly and accurately as possible, whether the
+person in the video was lying or telling the truth and use the dial to render your decision by
+“locking in” your answer as demonstrated in the tutorial.".to_string())),
             Box::new(ArcInputVideoView::new(0)),
             Box::new(ArcDichotomousView::new(0)),
             Box::new(ArcInputVideoView::new(1)),
@@ -64,6 +72,26 @@ impl Application for DynBaseProgram<'_> {
             Box::new(ArcDichotomousView::new(2)),
             Box::new(ArcInputVideoView::new(3)),
             Box::new(ArcDichotomousView::new(3)),
+            Box::new(InfoView::new("Demographics".to_string(), "Demographics will go here".to_string())),
+            Box::new(InfoView::new("Debriefing".to_string(), "As you read in the consent form, the goal of this study is to learn how people make decisions
+about deception. We are trying to find out whether the types of decision-making tool (i.e., the
+dial) that people use and the instructions that people receive when making lie detection decisions
+might affect judgments of deception. For example, if someone uses continuous dial judgments to
+make their decision, are they more likely to accurately judge if someone is a lie-teller than if they
+made a single dial choice after they viewed an account? Currently, the impact of the dial as a
+decision-making tool and instructions on lie detection are unknown.\n
+In this study, you watched videos of people who were being interviewed and provided an alibi
+for their whereabouts. We randomly chose which people would be encouraged to be honest, or
+lie, to the interviewer. As a result, people’s actions were primarily due to our experimental
+design and were not reflective of their natural behaviors or personal characteristics.\n
+Thank you so much for taking part in our study! I want to let you know that it is very important
+that you do not talk to anyone else about this study who hasn’t participated yet. If people know
+what we’re studying before they arrive, they might change their behavior, and then we wouldn’t
+be able to successfully run the study. So, it is very important that you do not discuss this study
+with others.\n
+If you wish to learn more about the study or the aggregate results, please feel free to contact the
+Principal Investigator, Elizabeth Elliott, at elliotte@iastate.edu\n
+Thank you again for participating!".to_string())),
             Box::new(InfoView::new("Finished".to_string(), "Thank you for participating.".to_string())),
         ];
 
@@ -116,6 +144,8 @@ impl Application for DynBaseProgram<'_> {
                     if let Some(dial_settings) = self.screens[self.current_screen].arc_settings() {
                         self.update_dial_settings(dial_settings);
                     }
+                } else if self.current_screen + 1 >= self.screens.len() {
+                    std::process::exit(0);
                 }
             },
             ScreenCommand::PreviousScreen => {
