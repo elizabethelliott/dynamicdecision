@@ -4,6 +4,7 @@ use iced::Element;
 
 use iced::Length;
 use iced::Text;
+use iced::alignment::Vertical;
 use surface_dial_rs::events::{DialEvent, DialDirection, TopLevelEvent};
 
 use crate::Message;
@@ -35,7 +36,7 @@ impl DialView for InfoView {
             Some(e) => {
                 if let TopLevelEvent::DialEvent(DialEvent::Button { pressed }) = &e {
                     if *pressed {
-                        return ScreenCommand::NextScreen;
+                        return ScreenCommand::NextScreen(None);
                     }
                 }
             },
@@ -55,7 +56,7 @@ impl DialView for InfoView {
             .padding(20)
             .align_items(Alignment::Center)
             .push(Text::new(title).size(30))
-            .push(Text::new(message).size(18))
+            .push(Text::new(message).size(18).height(Length::Fill).vertical_alignment(Vertical::Center))
             .into()
     }
 
@@ -75,5 +76,9 @@ impl DialView for InfoView {
         Some(super::ArcSettings {
             divisions: 0
         })
+    }
+
+    fn iced_input(&mut self, msg: Message) -> ScreenCommand {
+        ScreenCommand::None
     }
 }

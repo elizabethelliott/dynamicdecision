@@ -25,6 +25,7 @@ const MIN_VALUE: i32 = -1;
 const MAX_VALUE: i32 = 1;
 
 struct DataStructure {
+    id: usize,
     final_decision: i32,
     final_decision_timestamp: u128,
     data_points: Vec<DataPoint>
@@ -37,7 +38,7 @@ struct DataPoint {
 
 impl ExperimentData for DataStructure {
     fn name(&self) -> String {
-        "lie_truth_dichotomous".to_string()
+        format!("lie_truth_dichotomous_{}", self.id).to_string()
     }
 
     fn headers(&self) -> String {
@@ -63,6 +64,7 @@ impl Printable for DataStructure {
 }
 
 pub struct ArcDichotomousView {
+    id: usize,
     arc_input: ArcInput,
     value: i32,
     min_value: i32,
@@ -75,8 +77,9 @@ pub struct ArcDichotomousView {
 }
 
 impl DataStructure {
-    pub fn new() -> DataStructure {
+    pub fn new(id: usize) -> DataStructure {
         DataStructure { 
+            id,
             final_decision: 0,
             final_decision_timestamp: 0,
             data_points: Vec::new() 
@@ -85,19 +88,20 @@ impl DataStructure {
 }
 
 impl ArcDichotomousView {
-    pub fn new() -> ArcDichotomousView {
+    pub fn new(id: usize) -> ArcDichotomousView {
         let mut arc_input = ArcInput::new(MIN_VALUE, MAX_VALUE, 0, 90.0);
         arc_input.set_left_label("Lie".to_string());
         arc_input.set_right_label("Truth".to_string());
         arc_input.scale(2.0);
 
         ArcDichotomousView {
+            id,
             arc_input,
             value: 0,
             min_value: MIN_VALUE,
             max_value: MAX_VALUE,
             interim_decision: 0,
-            data: DataStructure::new(),
+            data: DataStructure::new(id),
             timer: None,
             finished: false,
             show_time: SystemTime::now()
@@ -154,7 +158,7 @@ impl DialView for ArcDichotomousView {
 
                             //println!("The user made a decision! {}", self.data.final_decision);
                         } else if self.finished {
-                            return ScreenCommand::NextScreen;
+                            return ScreenCommand::NextScreen(None);
                         }
                     }
                 }
@@ -216,5 +220,9 @@ impl DialView for ArcDichotomousView {
         Some(super::ArcSettings {
             divisions: 10
         })
+    }
+
+    fn iced_input(&mut self, msg: Message) -> ScreenCommand {
+        ScreenCommand::None
     }
 }

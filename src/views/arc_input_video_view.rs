@@ -1,3 +1,4 @@
+use std::borrow::BorrowMut;
 use std::time::Instant;
 use std::time::SystemTime;
 
@@ -24,7 +25,15 @@ use super::Printable;
 const MIN_VALUE: i32 = -10;
 const MAX_VALUE: i32 = 10;
 
+const VIDEOS: [&'static str; 4] = [
+    "../../videos/6/alibi1_control.mp4",
+    "../../videos/7/alibi1_control.mp4",
+    "../../videos/8/alibi1_control.mp4",
+    "../../videos/10/alibi1_control.mp4",
+];
+
 struct DataStructure {
+    id: usize,
     final_decision: i32,
     final_decision_timestamp: u128,
     data_points: Vec<DataPoint>
@@ -37,7 +46,7 @@ struct DataPoint {
 
 impl ExperimentData for DataStructure {
     fn name(&self) -> String {
-        "lie_truth_dynamic".to_string()
+        format!("lie_truth_dynamic_{}", self.id).to_string()
     }
 
     fn headers(&self) -> String {
@@ -63,20 +72,22 @@ impl Printable for DataStructure {
 }
 
 pub struct ArcInputVideoView {
+    id: usize,
     arc_input: ArcInput,
     value: i32,
     min_value: i32,
     max_value: i32,
     interim_decision: i32,
-    video: VideoPlayer,
+    video: Option<VideoPlayer>,
     data: DataStructure,
     timer: Option<Instant>,
     finished: bool
 }
 
 impl DataStructure {
-    pub fn new() -> DataStructure {
-        DataStructure { 
+    pub fn new(id: usize) -> DataStructure {
+        DataStructure {
+            id, 
             final_decision: 0,
             final_decision_timestamp: 0,
             data_points: Vec::new() 
@@ -85,28 +96,28 @@ impl DataStructure {
 }
 
 impl ArcInputVideoView {
-    pub fn new() -> ArcInputVideoView {
+    pub fn new(id: usize) -> ArcInputVideoView {
         let mut arc_input = ArcInput::new(MIN_VALUE, MAX_VALUE, 0, 90.0);
         arc_input.set_left_label("Lie".to_string());
         arc_input.set_right_label("Truth".to_string());
         arc_input.scale(1.4);
 
         ArcInputVideoView {
+            id,
             arc_input,
             value: 0,
             min_value: MIN_VALUE,
             max_value: MAX_VALUE,
             interim_decision: 0,
-            data: DataStructure::new(),
+            data: DataStructure::new(id),
             timer: None,
             finished: false,
-            video: VideoPlayer::new(&Url::from_file_path(std::path::PathBuf::from(file!()).parent().unwrap().join("../../videos/bad-guy.mp4").canonicalize().unwrap()).unwrap(), false).unwrap(), }
+            video: None }
     }
 }
 
 impl DialView for ArcInputVideoView {
     fn init(&mut self) {
-        self.video.set_paused(true);
         self.value = 0;
         self.arc_input.set_value(0);
         self.data.data_points.clear();
@@ -142,17 +153,17 @@ impl DialView for ArcInputVideoView {
                     if *pressed {
                         if !self.finished {
                             self.data.final_decision = self.value;
-                            self.data.final_decision_timestamp = self.video.position().as_millis();
+                            self.data.final_decision_timestamp = self.video.as_mut().expect("No video is playing").position().as_millis();
                             self.timer = None;
 
                             self.arc_input.set_disabled(true);
-                            self.video.set_paused(true);
+                            self.video.as_mut().expect("No video is playing").set_paused(true);
 
                             self.finished = true;
 
                             //println!("The user made a decision! {}", self.data.final_decision);
                         } else {
-                            return ScreenCommand::NextScreen;
+                            return ScreenCommand::NextScreen(None);
                         }
                     }
                 }
@@ -168,7 +179,7 @@ impl DialView for ArcInputVideoView {
         if let Some(timer) = self.timer {
             if timer.elapsed().as_millis() > 500 {
                 self.data.data_points.push(DataPoint {
-                    timestamp: self.video.position().as_millis(),
+                    timestamp: self.video.as_mut().expect("No video is playing").position().as_millis(),
                     value: self.value,
                 });
                 self.timer = None;
@@ -181,20 +192,28 @@ impl DialView for ArcInputVideoView {
     }
 
     fn view(&mut self) -> Element<Message> {
-        Column::new()
+        let mut column = Column::new()
             .width(Length::Fill)
             .height(Length::Fill)
             .padding(40)
             .align_items(Alignment::Center)
-            .push(Text::new("This is a test").size(30))
-            .push(self.video.frame_view())
-            .push(self.arc_input.view())
-            .push(Text::new(if self.finished { "Press down on the dial to continue" } else { "" }).size(25))
-            .into()
+            .push(Text::new("Is the person lying or telling the truth?").size(30));
+
+            if let Some(v) = self.video.borrow_mut() { 
+                column = column.push(v.frame_view().width(Length::Units(640)).height(Length::Units(360)));
+            } else { 
+                column = column.push(Text::new("Video is loading"));
+            }
+
+            column = column.push(self.arc_input.view())
+                .push(Text::new(if self.finished { "Press down on the dial to continue" } else { "" }).size(25));
+            
+            column.into()
     }
 
     fn show(&mut self) {
-        self.video.set_paused(false);
+        self.video = Some(VideoPlayer::new(&Url::from_file_path(std::path::PathBuf::from(file!()).parent().unwrap().join(VIDEOS[self.id]).canonicalize().unwrap()).unwrap(), false).unwrap(),);
+        self.video.as_mut().expect("No video is loaded").set_paused(false);
         self.value = 0;
         self.arc_input.set_value(0);
         self.data.data_points.clear();
@@ -202,7 +221,10 @@ impl DialView for ArcInputVideoView {
     }
 
     fn hide(&mut self) {
-        self.video.set_paused(true);
+        if let Some(v) = self.video.as_mut() {
+            v.set_paused(true);
+        }
+        self.video = None;
     }
 
     fn data(&self) -> Option<Box<&dyn super::ExperimentData>> {
@@ -213,5 +235,9 @@ impl DialView for ArcInputVideoView {
         Some(super::ArcSettings {
             divisions: 60
         })
+    }
+
+    fn iced_input(&mut self, msg: Message) -> ScreenCommand {
+        ScreenCommand::None
     }
 }

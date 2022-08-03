@@ -5,12 +5,15 @@ use surface_dial_rs::events::TopLevelEvent;
 use crate::Message;
 
 
+pub trait ConfigurationPayload {
+
+}
 pub trait Printable {
     fn to_csv(&self) -> String;
 }
 pub enum ScreenCommand {
     None,
-    NextScreen,
+    NextScreen(Option<Box<dyn ConfigurationPayload>>),
     PreviousScreen
 }
 
@@ -27,6 +30,7 @@ pub trait ExperimentData {
 pub trait DialView {
     fn init(&mut self);
     fn update(&mut self, msg: Option<TopLevelEvent>) -> ScreenCommand;
+    fn iced_input(&mut self, msg: Message) -> ScreenCommand;
     fn view(&mut self) -> Element<Message>;
     fn show(&mut self);
     fn hide(&mut self);
@@ -36,4 +40,5 @@ pub trait DialView {
 
 pub mod arc_input_video_view;
 pub mod arc_dichotomous_view;
+pub mod participant_id_view;
 pub mod info_view;
