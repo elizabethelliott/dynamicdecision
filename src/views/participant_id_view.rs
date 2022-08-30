@@ -50,7 +50,7 @@ impl DialView for ParticipantIdView {
             .push(Row::new()
                 .width(Length::Fill)
                 .padding(40)
-                .push(TextInput::new(&mut self.text_state, "Enter participant id...", &self.text_value, Message::TextInputChanged).padding(7))
+                .push(TextInput::new(&mut self.text_state, "Enter participant id...", &self.text_value, Message::TextInputChanged) .padding(7))
                 .push(Button::new(&mut self.button_state, Text::new("Submit")).on_press(Message::ButtonPressed)))
             .into()
     }

@@ -6,16 +6,18 @@ use surface_dial_rs::SurfaceDial;
 extern crate iced;
 extern crate surface_dial_rs;
 
-use iced::{Settings, Element, Application, executor, Command, window, Subscription, time};
+use iced::{executor, time, window, Application, Command, Element, Settings, Subscription};
 use views::participant_id_view::ParticipantIdView;
 
-mod views; 
-mod data;
 pub mod arc_input;
+mod data;
+mod views;
 
 use crate::views::arc_dichotomous_view::ArcDichotomousView;
 use crate::views::arc_input_video_view::ArcInputVideoView;
 use crate::views::info_view::InfoView;
+use crate::views::multichoice_view::MultiChoiceView;
+use crate::views::textinput_view::{TextInputType, TextInputView};
 use crate::views::ScreenCommand;
 
 use crate::data::write_data_file;
@@ -23,7 +25,7 @@ use crate::data::write_data_file;
 struct DynBaseProgram<'a> {
     dial: SurfaceDial<'a>,
     current_screen: usize,
-    screens: Vec<Box<dyn views::DialView>>
+    screens: Vec<Box<dyn views::DialView>>,
 }
 
 #[derive(Debug, Clone)]
@@ -31,6 +33,7 @@ pub enum Message {
     ProcessDialEvents,
     TextInputChanged(String),
     ButtonPressed,
+    RadioSelected(u32),
 }
 
 impl DynBaseProgram<'_> {
@@ -64,15 +67,54 @@ or lying, and so on.\n\n
 As you watch the video, please decide, as quickly and accurately as possible, whether the
 person in the video was lying or telling the truth and use the dial to render your decision by
 “locking in” your answer as demonstrated in the tutorial.".to_string())),
-            Box::new(ArcInputVideoView::new(0)),
-            Box::new(ArcDichotomousView::new(0)),
-            Box::new(ArcInputVideoView::new(1)),
-            Box::new(ArcDichotomousView::new(1)),
-            Box::new(ArcInputVideoView::new(2)),
-            Box::new(ArcDichotomousView::new(2)),
-            Box::new(ArcInputVideoView::new(3)),
-            Box::new(ArcDichotomousView::new(3)),
-            Box::new(InfoView::new("Demographics".to_string(), "Demographics will go here".to_string())),
+            // Box::new(ArcInputVideoView::new(0)),
+            // Box::new(ArcDichotomousView::new(0)),
+            // Box::new(ArcInputVideoView::new(1)),
+            // Box::new(ArcDichotomousView::new(1)),
+            // Box::new(ArcInputVideoView::new(2)),
+            // Box::new(ArcDichotomousView::new(2)),
+            // Box::new(ArcInputVideoView::new(3)),
+            // Box::new(ArcDichotomousView::new(3)),
+            Box::new(TextInputView::new(
+                TextInputType::Number, 
+                "demographics_age".to_string(), 
+                "Demographics".to_string(), 
+                "What is your current age?".to_string(),
+                "Age...".to_string())
+            ),
+            Box::new(MultiChoiceView::new(
+                "demographics_gender".to_string(), 
+                "Demographics".to_string(), 
+                "With which gender do you most identify (select one)?".to_string(), 
+                vec![
+                    (0, "Male".to_string()), 
+                    (1, "Female".to_string()), 
+                    (2, "Other".to_string()),
+                    (3, "Prefer not to disclose".to_string()),
+                ]
+            )),
+            Box::new(MultiChoiceView::new(
+                "demographics_race".to_string(), 
+                "Demographics".to_string(), 
+                "Which of the following races/ethnicities best describes you (select one)?".to_string(), 
+                vec![
+                    (0, "Aboriginal or indigenous (i.e., Alaskan native, American Indian, First Nations, Inuit, Metis)".to_string()), 
+                    (1, "Arab or West Asian (e.g., Armenian, Egyptian, Iranian, Lebanese, Moroccan)".to_string()), 
+                    (2, "Black (e.g., African, Haitian, Jamaican, Somali)".to_string()),
+                    (3, "Chinese".to_string()),
+                    (4, "Filipino".to_string()),
+                    (5, "Japanese".to_string()),
+                    (6, "Korean".to_string()),
+                    (7, "Latino/Hispanic".to_string()),
+                    (8, "Pacific Islander".to_string()),
+                    (9, "South Asian".to_string()),
+                    (10, "South East Asian".to_string()),
+                    (11, "White, non-Hispanic (i.e., Caucasian)".to_string()),
+                    (12, "Multi-ethnic".to_string()),
+                    (13, "Other".to_string()),
+                    (14, "Prefer not to disclose".to_string()),
+                ]
+            )),
             Box::new(InfoView::new("Debriefing".to_string(), "As you read in the consent form, the goal of this study is to learn how people make decisions
 about deception. We are trying to find out whether the types of decision-making tool (i.e., the
 dial) that people use and the instructions that people receive when making lie detection decisions
@@ -99,11 +141,14 @@ Thank you again for participating!".to_string())),
             s.init();
         }
 
-        (DynBaseProgram {
-            dial,
-            current_screen: 0,
-            screens
-        }, Command::none())
+        (
+            DynBaseProgram {
+                dial,
+                current_screen: 0,
+                screens,
+            },
+            Command::none(),
+        )
     }
 
     fn title(&self) -> String {
@@ -117,12 +162,16 @@ Thank you again for participating!".to_string())),
             Message::ProcessDialEvents => {
                 let result = self.dial.pop_event();
                 command = self.screens[self.current_screen].update(result);
-            },
+            }
             Message::TextInputChanged(s) => {
-                command = self.screens[self.current_screen].iced_input(Message::TextInputChanged(s));
-            },
+                command =
+                    self.screens[self.current_screen].iced_input(Message::TextInputChanged(s));
+            }
             Message::ButtonPressed => {
                 command = self.screens[self.current_screen].iced_input(Message::ButtonPressed);
+            },
+            Message::RadioSelected(c) => {
+                command = self.screens[self.current_screen].iced_input(Message::RadioSelected(c));
             }
         }
 
@@ -147,11 +196,11 @@ Thank you again for participating!".to_string())),
                 } else if self.current_screen + 1 >= self.screens.len() {
                     std::process::exit(0);
                 }
-            },
+            }
             ScreenCommand::PreviousScreen => {
                 if self.current_screen > 0 {
                     self.screens[self.current_screen].hide();
-                    
+
                     self.current_screen -= 1;
 
                     self.screens[self.current_screen].init();
@@ -161,7 +210,7 @@ Thank you again for participating!".to_string())),
                         self.update_dial_settings(dial_settings);
                     }
                 }
-            },
+            }
             _ => {}
         }
 
@@ -170,7 +219,7 @@ Thank you again for participating!".to_string())),
 
     fn subscription(&self) -> Subscription<Message> {
         time::every(Duration::from_millis(1000 / 60 as u64))
-                .map(|_instant| { Message::ProcessDialEvents } )
+            .map(|_instant| Message::ProcessDialEvents)
     }
 
     fn view(&mut self) -> Element<Message> {

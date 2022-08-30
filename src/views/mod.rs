@@ -42,3 +42,5 @@ pub mod arc_input_video_view;
 pub mod arc_dichotomous_view;
 pub mod participant_id_view;
 pub mod info_view;
+pub mod multichoice_view;
+pub mod textinput_view;
