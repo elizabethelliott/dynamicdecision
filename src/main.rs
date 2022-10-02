@@ -1,13 +1,19 @@
-use std::borrow::Borrow;
+use std::borrow::{Borrow, BorrowMut};
+use std::fs;
 use std::time::Duration;
 
 use surface_dial_rs::SurfaceDial;
 
 extern crate iced;
 extern crate surface_dial_rs;
+extern crate yaml_rust;
+
+use native_dialog::{MessageDialog, MessageType};
 
 use iced::{executor, time, window, Application, Command, Element, Settings, Subscription};
+use views::DialView;
 use views::participant_id_view::ParticipantIdView;
+use yaml_rust::{YamlLoader, Yaml};
 
 pub mod arc_input;
 mod data;
@@ -21,11 +27,27 @@ use crate::views::textinput_view::{TextInputType, TextInputView};
 use crate::views::ScreenCommand;
 
 use crate::data::write_data_file;
+use crate::data::partipant_data::ParticipantData;
+
+enum AppState {
+    Participant,
+    Instructions,
+    Videos,
+    Demographics,
+    Final
+}
 
 struct DynBaseProgram<'a> {
+    config: Yaml,
+    app_state: AppState,
     dial: SurfaceDial<'a>,
     current_screen: usize,
+    participant_data: Option<ParticipantData>,
+    participant_screen: Box<dyn views::DialView>,
+    instruction_screen: Box<dyn views::DialView>,
     screens: Vec<Box<dyn views::DialView>>,
+    demographics_screens: Vec<Box<dyn views::DialView>>,
+    final_screen: Box<dyn views::DialView>,
 }
 
 #[derive(Debug, Clone)]
@@ -37,11 +59,13 @@ pub enum Message {
 }
 
 impl DynBaseProgram<'_> {
-    fn update_dial_settings(&mut self, settings: views::ArcSettings) {
-        if settings.divisions > 0 {
-            self.dial.set_subdivisions(settings.divisions);
-        } else {
-            self.dial.disable_subdivisions();
+    fn update_dial_settings(&mut self, settings: Option<views::ArcSettings>) {
+        if let Some(actual_settings) = settings {
+            if actual_settings.divisions > 0 {
+                self.dial.set_subdivisions(actual_settings.divisions);
+            } else {
+                self.dial.disable_subdivisions();
+            }
         }
     }
 }
@@ -52,13 +76,19 @@ impl Application for DynBaseProgram<'_> {
     type Flags = ();
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
+        let yaml_string = fs::read_to_string("participants.yaml").expect("Could not load participants file");
+        let yaml_docs = YamlLoader::load_from_str(yaml_string.as_str()).expect("Invalid YAML in participants.yaml");
+
+        let yaml_config = &yaml_docs[0];
+
         let mut dial = SurfaceDial::new();
 
         dial.set_subdivisions(60);
 
-        let mut screens: Vec<Box<dyn views::DialView>> = vec![
-            Box::new(ParticipantIdView::new()),
-            Box::new(InfoView::new("Instructions".to_string(), "In this study, you will watch video clips of different people providing an alibi, and answering
+        let participant_screen: Box<dyn views::DialView> = Box::new(ParticipantIdView::new());
+
+        let instruction_screen: Box<dyn views::DialView> = Box::new(InfoView::new("Instructions".to_string(), 
+        "In this study, you will watch video clips of different people providing an alibi, and answering
 questions provided by an experimenter. Some people will be lying, whereas others will be telling
 the truth. The clips will be randomly presented, so that each adult has a 50-50 likelihood of
 telling the truth or lying. The segments are also independent. This means that if the person in
@@ -66,7 +96,9 @@ Clip 1 is telling the truth, there is still a 50-50 chance that the person in Cl
 or lying, and so on.\n\n
 As you watch the video, please decide, as quickly and accurately as possible, whether the
 person in the video was lying or telling the truth and use the dial to render your decision by
-“locking in” your answer as demonstrated in the tutorial.".to_string())),
+“locking in” your answer as demonstrated in the tutorial.".to_string()));
+
+        let mut screens: Vec<Box<dyn views::DialView>> = vec![
             // Box::new(ArcInputVideoView::new(0)),
             // Box::new(ArcDichotomousView::new(0)),
             // Box::new(ArcInputVideoView::new(1)),
@@ -75,6 +107,9 @@ person in the video was lying or telling the truth and use the dial to render yo
             // Box::new(ArcDichotomousView::new(2)),
             // Box::new(ArcInputVideoView::new(3)),
             // Box::new(ArcDichotomousView::new(3)),
+        ];
+
+        let demographics_screens: Vec<Box<dyn views::DialView>> = vec![
             Box::new(TextInputView::new(
                 TextInputType::Number, 
                 "demographics_age".to_string(), 
@@ -134,8 +169,9 @@ with others.\n
 If you wish to learn more about the study or the aggregate results, please feel free to contact the
 Principal Investigator, Elizabeth Elliott, at elliotte@iastate.edu\n
 Thank you again for participating!".to_string())),
-            Box::new(InfoView::new("Finished".to_string(), "Thank you for participating.".to_string())),
         ];
+
+        let final_screen: Box<dyn views::DialView> = Box::new(InfoView::new("Finished".to_string(), "Thank you for participating.".to_string()));
 
         for s in screens.iter_mut() {
             s.init();
@@ -143,9 +179,16 @@ Thank you again for participating!".to_string())),
 
         (
             DynBaseProgram {
+                config: yaml_config.clone(),
+                app_state: AppState::Participant,
                 dial,
                 current_screen: 0,
+                participant_data: None,
+                participant_screen,
+                instruction_screen,
                 screens,
+                demographics_screens,
+                final_screen,
             },
             Command::none(),
         )
@@ -157,60 +200,150 @@ Thank you again for participating!".to_string())),
 
     fn update(&mut self, message: Message) -> Command<Message> {
         let mut command = ScreenCommand::None;
+        let screen = match self.app_state {
+            AppState::Participant => &mut self.participant_screen,
+            AppState::Instructions => &mut self.instruction_screen,
+            AppState::Videos => &mut self.screens[self.current_screen],
+            AppState::Demographics => &mut self.demographics_screens[self.current_screen],
+            AppState::Final => &mut self.final_screen,
+        };
+        let dial = &self.dial;
 
         match message {
             Message::ProcessDialEvents => {
-                let result = self.dial.pop_event();
-                command = self.screens[self.current_screen].update(result);
+                let result = dial.pop_event();
+                command = screen.update(result);
             }
             Message::TextInputChanged(s) => {
                 command =
-                    self.screens[self.current_screen].iced_input(Message::TextInputChanged(s));
+                    screen.iced_input(Message::TextInputChanged(s));
             }
             Message::ButtonPressed => {
-                command = self.screens[self.current_screen].iced_input(Message::ButtonPressed);
+                command = screen.iced_input(Message::ButtonPressed);
             },
             Message::RadioSelected(c) => {
-                command = self.screens[self.current_screen].iced_input(Message::RadioSelected(c));
+                command = screen.iced_input(Message::RadioSelected(c));
             }
         }
 
         match command {
-            ScreenCommand::NextScreen(p) => {
-                if self.current_screen + 1 < self.screens.len() {
-                    self.screens[self.current_screen].hide();
+            ScreenCommand::NextScreen(c) => {
+                match self.app_state {
+                    AppState::Participant => {
+                        // Get participant from list and store it as participant data
+                        if let Some(config) = c {
+                            if config.contains_key("id") {
+                                let id = config["id"].parse::<usize>().unwrap();
+                                println!("Got the ID: {}!", id);
 
-                    // If this screen has data to write, export it
-                    if let Some(experiment_data) = self.screens[self.current_screen].data() {
-                        write_data_file(0, experiment_data);
+                                let info = self.config["participants"][id].clone();
+
+                                if info.is_badvalue() {
+                                    // Tell the user that they selected an incorrect participant
+                                    MessageDialog::new()
+                                        .set_type(MessageType::Error)
+                                        .set_title("Invalid Participant")
+                                        .set_text(format!("The participant ID {} does not have an entry. Please select a different participant ID.", id).as_str())
+                                        .show_alert()
+                                        .unwrap();
+                                    
+                                    self.app_state = AppState::Participant;
+
+                                    self.participant_screen.init();
+                                    self.participant_screen.show();
+                                } else {
+                                    // Store the participant info and move on to instructions
+                                    self.participant_data = Some(ParticipantData { 
+                                        id: id, 
+                                        data: info 
+                                    });
+
+                                    self.participant_screen.hide();
+
+                                    // Switch to the instructions
+                                    self.app_state = AppState::Instructions;
+
+                                    self.instruction_screen.init();
+                                    self.instruction_screen.show();
+
+                                    self.update_dial_settings(self.instruction_screen.arc_settings());
+                                }
+                            }
+                        }
+                    },
+                    AppState::Instructions => {
+                        self.instruction_screen.hide();
+
+                        self.app_state = AppState::Videos;
+
+                        self.screens[0].init();
+                        self.screens[0].show();
+
+                        self.update_dial_settings(self.screens[0].arc_settings());
+                    },
+                    AppState::Videos => {
+                        self.screens[self.current_screen].hide();
+
+                        // If this screen has data to write, export it
+                        if let Some(experiment_data) = self.screens[self.current_screen].data() {
+                            write_data_file(self.participant_data.as_ref().expect("Missing participant information").id, experiment_data);
+                        }
+
+                        if self.current_screen + 1 < self.screens.len() {                
+                            self.current_screen += 1;
+        
+                            self.screens[self.current_screen].init();
+                            self.screens[self.current_screen].show();
+        
+                            self.update_dial_settings(self.screens[self.current_screen].arc_settings());
+                        } else if self.current_screen + 1 >= self.screens.len() {
+                            self.current_screen = 0;
+                            self.app_state = AppState::Demographics;
+
+                            self.demographics_screens[0].init();
+                            self.demographics_screens[0].show();
+
+                            self.update_dial_settings(self.demographics_screens[0].arc_settings());
+                        }
+                    },
+                    AppState::Demographics => {
+                        if self.current_screen + 1 < self.demographics_screens.len() {
+                            self.demographics_screens[self.current_screen].hide();
+        
+                            // If this screen has data to write, export it
+                            if let Some(experiment_data) = self.demographics_screens[self.current_screen].data() {
+                                write_data_file(self.participant_data.as_ref().expect("Missing participant information").id, experiment_data);
+                            }
+        
+                            self.current_screen += 1;
+        
+                            self.demographics_screens[self.current_screen].init();
+                            self.demographics_screens[self.current_screen].show();
+        
+                            self.update_dial_settings(self.demographics_screens[self.current_screen].arc_settings());
+                        } else if self.current_screen + 1 >= self.demographics_screens.len() {
+                            self.current_screen = 0;
+                            self.app_state = AppState::Final;
+
+                            self.final_screen.init();
+                            self.final_screen.show();
+
+                            self.update_dial_settings(self.final_screen.arc_settings());
+                        }                        
+                    },
+                    AppState::Final => {
+                        self.current_screen = 0;
+                        self.screens.clear();
+                        self.app_state = AppState::Participant;
+
+                        self.participant_screen.init();
+                        self.participant_screen.show();
+
+                        self.update_dial_settings(self.participant_screen.arc_settings());
                     }
-
-                    self.current_screen += 1;
-
-                    self.screens[self.current_screen].init();
-                    self.screens[self.current_screen].show();
-
-                    if let Some(dial_settings) = self.screens[self.current_screen].arc_settings() {
-                        self.update_dial_settings(dial_settings);
-                    }
-                } else if self.current_screen + 1 >= self.screens.len() {
-                    std::process::exit(0);
                 }
             }
-            ScreenCommand::PreviousScreen => {
-                if self.current_screen > 0 {
-                    self.screens[self.current_screen].hide();
-
-                    self.current_screen -= 1;
-
-                    self.screens[self.current_screen].init();
-                    self.screens[self.current_screen].show();
-
-                    if let Some(dial_settings) = self.screens[self.current_screen].arc_settings() {
-                        self.update_dial_settings(dial_settings);
-                    }
-                }
-            }
+            ScreenCommand::PreviousScreen => {}
             _ => {}
         }
 
@@ -223,7 +356,13 @@ Thank you again for participating!".to_string())),
     }
 
     fn view(&mut self) -> Element<Message> {
-        self.screens[self.current_screen].view()
+        match self.app_state {
+            AppState::Participant => return self.participant_screen.view(),
+            AppState::Instructions => return self.instruction_screen.view(),
+            AppState::Videos => return self.screens[self.current_screen].view(),
+            AppState::Demographics => return self.demographics_screens[self.current_screen].view(),
+            AppState::Final => return self.final_screen.view(),
+        }
     }
 
     fn mode(&self) -> window::Mode {

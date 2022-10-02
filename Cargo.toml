@@ -13,3 +13,5 @@ iced_native = "0.5.1"
 hidapi = { version = "1.2.3", default-features = false, features = ["linux-shared-hidraw"] }
 flume = "0.10.12"
 url = "2.2.2"
+yaml-rust = "0.4"
+native-dialog = "0.6.3"

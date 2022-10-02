@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use iced::Alignment;
 use iced::Button;
 use iced::Column;
@@ -56,7 +58,9 @@ impl DialView for ParticipantIdView {
     }
 
     fn show(&mut self) {
-
+        self.text_value = String::default();
+        self.text_state = iced::text_input::State::new();
+        self.button_state = iced::button::State::new();
     }
 
     fn hide(&mut self) {
@@ -74,10 +78,14 @@ impl DialView for ParticipantIdView {
     fn iced_input(&mut self, msg: Message) -> ScreenCommand {
         match msg {
             Message::TextInputChanged(s) => {
-                self.text_value = s;
+                if s.chars().all(char::is_numeric) {
+                    self.text_value = s;
+                }
             },
             Message::ButtonPressed => {
-                return ScreenCommand::NextScreen(None);
+                return ScreenCommand::NextScreen(Some(HashMap::from([
+                    ("id".to_string(), self.text_value.clone())
+                ])));
             },
             _ => {
 

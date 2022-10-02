@@ -2,6 +2,7 @@ use std::{path::Path, fs::File, io::Write, fs::create_dir_all};
 
 use crate::views::ExperimentData;
 
+pub mod partipant_data;
 
 pub fn write_data_file(id: u32, experiment_data: Box<&dyn ExperimentData>) {
     let file_name = format!("output/{}/{}.csv", id, experiment_data.name());

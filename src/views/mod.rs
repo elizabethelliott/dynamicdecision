@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use iced::Element;
 
 use surface_dial_rs::events::TopLevelEvent;
@@ -8,12 +10,13 @@ use crate::Message;
 pub trait ConfigurationPayload {
 
 }
+
 pub trait Printable {
     fn to_csv(&self) -> String;
 }
 pub enum ScreenCommand {
     None,
-    NextScreen(Option<Box<dyn ConfigurationPayload>>),
+    NextScreen(Option<HashMap<String, String>>),
     PreviousScreen
 }
 
