@@ -523,6 +523,7 @@ dependencies = [
  "iced_native",
  "iced_video_player",
  "native-dialog",
+ "rand",
  "surface-dial-rs",
  "url",
  "yaml-rust",

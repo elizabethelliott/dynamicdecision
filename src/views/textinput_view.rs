@@ -88,7 +88,10 @@ impl TextInputView {
 
 impl DialView for TextInputView {
     fn init(&mut self) {
-
+        self.text_value = "".to_string();
+        self.text_state = iced::text_input::State::new();
+        self.button_state = iced::button::State::new();
+        self.data = TextData::new(self.data.name.clone());
     }
 
     fn update(&mut self, _msg: Option<TopLevelEvent>) -> ScreenCommand {

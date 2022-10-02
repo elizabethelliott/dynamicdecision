@@ -4,7 +4,7 @@ use crate::views::ExperimentData;
 
 pub mod partipant_data;
 
-pub fn write_data_file(id: u32, experiment_data: Box<&dyn ExperimentData>) {
+pub fn write_data_file(id: usize, experiment_data: Box<&dyn ExperimentData>) {
     let file_name = format!("output/{}/{}.csv", id, experiment_data.name());
     let write_path = Path::new(file_name.as_str());
 

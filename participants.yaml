@@ -1,10 +1,5 @@
 participants:
   0:
     control: false
-    videos:
-      - "6/alibi_control.mp4"
-      - "7/alibi_control.mp4"
-      - "8/alibi_control.mp4"
-      - "9/alibi_control.mp4"
-      - "10/alibi_control.mp4"
-      - "11/alibi_control.mp4"
+  1:
+    control: true

@@ -1,6 +1,6 @@
-use std::borrow::{Borrow, BorrowMut};
 use std::fs;
 use std::time::Duration;
+use rand::{thread_rng, seq::IteratorRandom};
 
 use surface_dial_rs::SurfaceDial;
 
@@ -11,7 +11,7 @@ extern crate yaml_rust;
 use native_dialog::{MessageDialog, MessageType};
 
 use iced::{executor, time, window, Application, Command, Element, Settings, Subscription};
-use views::DialView;
+use iced::keyboard::{self, KeyCode};
 use views::participant_id_view::ParticipantIdView;
 use yaml_rust::{YamlLoader, Yaml};
 
@@ -28,6 +28,23 @@ use crate::views::ScreenCommand;
 
 use crate::data::write_data_file;
 use crate::data::partipant_data::ParticipantData;
+
+const VIDEOS: [&'static str; 12] = [
+    "../../videos/6/alibi1_control.mp4",
+    "../../videos/7/alibi1_control.mp4",
+    "../../videos/8/alibi1_control.mp4",
+    "../../videos/10/alibi1_control.mp4",
+    "../../videos/11/alibi1_control.mp4",
+    "../../videos/12/alibi1_control.mp4",
+    "../../videos/13/alibi1_control.mp4",
+    "../../videos/14/alibi1_control.mp4",
+    "../../videos/15/alibi1_control.mp4",
+    "../../videos/16/alibi1_control.mp4",
+    "../../videos/17/alibi1_control.mp4",
+    "../../videos/18/alibi1_control.mp4",
+];
+
+const NUM_VIDEOS: usize = 10;
 
 enum AppState {
     Participant,
@@ -56,6 +73,8 @@ pub enum Message {
     TextInputChanged(String),
     ButtonPressed,
     RadioSelected(u32),
+    KeyPressed(KeyCode),
+    KeyReleased(KeyCode)
 }
 
 impl DynBaseProgram<'_> {
@@ -224,6 +243,12 @@ Thank you again for participating!".to_string())),
             Message::RadioSelected(c) => {
                 command = screen.iced_input(Message::RadioSelected(c));
             }
+            Message::KeyPressed(k) => {
+                if k == KeyCode::Right {
+                    command = ScreenCommand::NextScreen(None);
+                }
+            },
+            Message::KeyReleased(_) => {},
         }
 
         match command {
@@ -252,11 +277,27 @@ Thank you again for participating!".to_string())),
                                     self.participant_screen.init();
                                     self.participant_screen.show();
                                 } else {
+                                    let control = info["control"].as_bool().expect(format!("Participant {} is missing the control parameter", id).as_str());
+
                                     // Store the participant info and move on to instructions
                                     self.participant_data = Some(ParticipantData { 
-                                        id: id, 
+                                        id, 
                                         data: info 
                                     });
+
+                                    let mut video_set = Vec::from(VIDEOS.clone());
+                                    
+                                    // Create a new set of video screens
+                                    for i in 0..NUM_VIDEOS {
+                                        // Select a random video path
+                                        let vid_index = (0..video_set.len()).choose(&mut thread_rng()).unwrap();
+
+                                        // Remove the path from the set so it cannot be picked again
+                                        let vid_path = video_set.swap_remove(vid_index);
+
+                                        self.screens.push(Box::new(ArcInputVideoView::new(i, vid_path, control)));
+                                        self.screens.push(Box::new(ArcDichotomousView::new(i, control)));
+                                    }
 
                                     self.participant_screen.hide();
 
@@ -351,8 +392,28 @@ Thank you again for participating!".to_string())),
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        time::every(Duration::from_millis(1000 / 60 as u64))
-            .map(|_instant| Message::ProcessDialEvents)
+        use iced_native::event::Event;
+
+        Subscription::batch(vec![
+            time::every(Duration::from_millis(1000 / 60 as u64))
+                .map(|_instant| Message::ProcessDialEvents),
+            iced_native::subscription::events_with(|event, _status| {
+                match event {
+                Event::Keyboard(e) => {
+                    match e {
+                    keyboard::Event::KeyPressed{key_code, modifiers: _} => {
+                        Some(Message::KeyPressed(key_code))
+                    },
+                    keyboard::Event::KeyReleased{key_code, modifiers: _} => {
+                        Some(Message::KeyReleased(key_code))
+                    }
+                    _ => None
+                    }
+                },
+                _ => None,
+                }
+            })
+        ])
     }
 
     fn view(&mut self) -> Element<Message> {

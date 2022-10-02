@@ -25,15 +25,10 @@ use super::Printable;
 const MIN_VALUE: i32 = -10;
 const MAX_VALUE: i32 = 10;
 
-const VIDEOS: [&'static str; 4] = [
-    "../../videos/6/alibi1_control.mp4",
-    "../../videos/7/alibi1_control.mp4",
-    "../../videos/8/alibi1_control.mp4",
-    "../../videos/10/alibi1_control.mp4",
-];
-
 struct DataStructure {
     id: usize,
+    path: &'static str,
+    control: bool,
     final_decision: i32,
     final_decision_timestamp: u128,
     data_points: Vec<DataPoint>
@@ -61,11 +56,19 @@ impl ExperimentData for DataStructure {
 impl Printable for DataStructure {
     fn to_csv(&self) -> String {
         let mut final_string: String = "".to_string();
+        let multiplier = if self.control {
+            -1
+        } else {
+            1
+        };
+
+        final_string.push_str(format!("control,0,{}\n", self.control).as_str());
+        final_string.push_str(format!("path,0,{}\n", self.path).as_str());
 
         for point in self.data_points.iter() {
             final_string.push_str(format!("decision,{},{}\n", point.timestamp, point.value).as_str());
         }
-        final_string.push_str(format!("final,{},{}\n", self.final_decision_timestamp, self.final_decision).as_str());
+        final_string.push_str(format!("final,{},{}\n", self.final_decision_timestamp, self.final_decision * multiplier).as_str());
         
         final_string
     }
@@ -73,6 +76,7 @@ impl Printable for DataStructure {
 
 pub struct ArcInputVideoView {
     id: usize,
+    path: &'static str,
     arc_input: ArcInput,
     value: i32,
     min_value: i32,
@@ -85,9 +89,11 @@ pub struct ArcInputVideoView {
 }
 
 impl DataStructure {
-    pub fn new(id: usize) -> DataStructure {
+    pub fn new(id: usize, path: &'static str, control: bool) -> DataStructure {
         DataStructure {
-            id, 
+            id,
+            control,
+            path,
             final_decision: 0,
             final_decision_timestamp: 0,
             data_points: Vec::new() 
@@ -96,20 +102,26 @@ impl DataStructure {
 }
 
 impl ArcInputVideoView {
-    pub fn new(id: usize) -> ArcInputVideoView {
+    pub fn new(id: usize, path: &'static str, control: bool) -> ArcInputVideoView {
         let mut arc_input = ArcInput::new(MIN_VALUE, MAX_VALUE, 0, 90.0);
-        arc_input.set_left_label("Lie".to_string());
-        arc_input.set_right_label("Truth".to_string());
+        if control {
+            arc_input.set_right_label("Lie".to_string());
+            arc_input.set_left_label("Truth".to_string());
+        } else {
+            arc_input.set_left_label("Lie".to_string());
+            arc_input.set_right_label("Truth".to_string());
+        }
         arc_input.scale(1.4);
 
         ArcInputVideoView {
             id,
+            path,
             arc_input,
             value: 0,
             min_value: MIN_VALUE,
             max_value: MAX_VALUE,
             interim_decision: 0,
-            data: DataStructure::new(id),
+            data: DataStructure::new(id, path, control),
             timer: None,
             finished: false,
             video: None }
@@ -212,7 +224,7 @@ impl DialView for ArcInputVideoView {
     }
 
     fn show(&mut self) {
-        self.video = Some(VideoPlayer::new(&Url::from_file_path(std::path::PathBuf::from(file!()).parent().unwrap().join(VIDEOS[self.id]).canonicalize().unwrap()).unwrap(), false).unwrap(),);
+        self.video = Some(VideoPlayer::new(&Url::from_file_path(std::path::PathBuf::from(file!()).parent().unwrap().join(self.path).canonicalize().unwrap()).unwrap(), false).unwrap(),);
         self.video.as_mut().expect("No video is loaded").set_paused(false);
         self.value = 0;
         self.arc_input.set_value(0);

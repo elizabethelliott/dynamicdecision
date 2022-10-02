@@ -78,7 +78,9 @@ impl MultiChoiceView {
 
 impl DialView for MultiChoiceView {
     fn init(&mut self) {
-        
+        self.current_choice = None;
+        self.button_state = State::new();
+        self.data = ChoiceData::new(self.data.name.clone());
     }
 
     fn update(&mut self, msg: Option<TopLevelEvent>) -> ScreenCommand {

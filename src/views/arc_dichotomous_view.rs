@@ -26,6 +26,7 @@ const MAX_VALUE: i32 = 1;
 
 struct DataStructure {
     id: usize,
+    control: bool,
     final_decision: i32,
     final_decision_timestamp: u128,
     data_points: Vec<DataPoint>
@@ -53,9 +54,14 @@ impl ExperimentData for DataStructure {
 impl Printable for DataStructure {
     fn to_csv(&self) -> String {
         let mut final_string: String = "".to_string();
+        let multiplier = if self.control {
+            -1
+        } else {
+            1
+        };
 
         for point in self.data_points.iter() {
-            final_string.push_str(format!("decision,{},{}\n", point.timestamp, point.value).as_str());
+            final_string.push_str(format!("decision,{},{}\n", point.timestamp, point.value * multiplier).as_str());
         }
         final_string.push_str(format!("final,{},{}\n", self.final_decision_timestamp, self.final_decision).as_str());
         
@@ -65,6 +71,7 @@ impl Printable for DataStructure {
 
 pub struct ArcDichotomousView {
     id: usize,
+    control: bool,
     arc_input: ArcInput,
     value: i32,
     min_value: i32,
@@ -77,9 +84,10 @@ pub struct ArcDichotomousView {
 }
 
 impl DataStructure {
-    pub fn new(id: usize) -> DataStructure {
+    pub fn new(id: usize, control: bool) -> DataStructure {
         DataStructure { 
             id,
+            control,
             final_decision: 0,
             final_decision_timestamp: 0,
             data_points: Vec::new() 
@@ -88,20 +96,27 @@ impl DataStructure {
 }
 
 impl ArcDichotomousView {
-    pub fn new(id: usize) -> ArcDichotomousView {
+    pub fn new(id: usize, control: bool) -> ArcDichotomousView {
         let mut arc_input = ArcInput::new(MIN_VALUE, MAX_VALUE, 0, 90.0);
-        arc_input.set_left_label("Lie".to_string());
-        arc_input.set_right_label("Truth".to_string());
+        if control {
+            arc_input.set_right_label("Lie".to_string());
+            arc_input.set_left_label("Truth".to_string());
+        } else {
+            arc_input.set_left_label("Lie".to_string());
+            arc_input.set_right_label("Truth".to_string());
+        }
+        
         arc_input.scale(2.0);
 
         ArcDichotomousView {
             id,
+            control,
             arc_input,
             value: 0,
             min_value: MIN_VALUE,
             max_value: MAX_VALUE,
             interim_decision: 0,
-            data: DataStructure::new(id),
+            data: DataStructure::new(id, control),
             timer: None,
             finished: false,
             show_time: SystemTime::now()
