@@ -1,3 +1,6 @@
+config:
+  scaling: 1.5
+
 participants:
   0:
     control: false

@@ -35,7 +35,9 @@ impl ParticipantIdView {
 
 impl DialView for ParticipantIdView {
     fn init(&mut self) {
-
+        self.text_value = String::default();
+        self.text_state = iced::text_input::State::new();
+        self.button_state = iced::button::State::new();
     }
 
     fn update(&mut self, _msg: Option<TopLevelEvent>) -> ScreenCommand {
@@ -43,24 +45,31 @@ impl DialView for ParticipantIdView {
     }
 
     fn view(&mut self) -> Element<Message> {
-        Column::new()
+
+        let mut column = Column::new()
             .width(Length::Fill)
             .height(Length::Fill)
             .padding(40)
             .align_items(Alignment::Center)
-            .push(Text::new("Enter the participant ID to begin").size(30))
-            .push(Row::new()
-                .width(Length::Fill)
-                .padding(40)
-                .push(TextInput::new(&mut self.text_state, "Enter participant id...", &self.text_value, Message::TextInputChanged) .padding(7))
-                .push(Button::new(&mut self.button_state, Text::new("Submit")).on_press(Message::ButtonPressed)))
-            .into()
+            .push(Text::new("Enter the participant ID to begin").size(30));
+
+        let mut submit_button = Button::new(&mut self.button_state, Text::new("Submit"));
+
+        if self.text_value.len() > 0 {
+            submit_button = submit_button.on_press(Message::ButtonPressed);
+        }
+
+        column = column.push(Row::new()
+            .width(Length::Fill)
+            .padding(40)
+            .push(TextInput::new(&mut self.text_state, "Enter participant id...", &self.text_value, Message::TextInputChanged) .padding(7))
+            .push(submit_button));
+            
+        column.into()
     }
 
     fn show(&mut self) {
-        self.text_value = String::default();
-        self.text_state = iced::text_input::State::new();
-        self.button_state = iced::button::State::new();
+        
     }
 
     fn hide(&mut self) {

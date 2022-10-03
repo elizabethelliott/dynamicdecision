@@ -55,6 +55,7 @@ enum AppState {
 }
 
 struct DynBaseProgram<'a> {
+    scaling_override: f64,
     config: Yaml,
     app_state: AppState,
     dial: SurfaceDial<'a>,
@@ -95,10 +96,16 @@ impl Application for DynBaseProgram<'_> {
     type Flags = ();
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
-        let yaml_string = fs::read_to_string("participants.yaml").expect("Could not load participants file");
-        let yaml_docs = YamlLoader::load_from_str(yaml_string.as_str()).expect("Invalid YAML in participants.yaml");
+        let yaml_string = fs::read_to_string("config.yaml").expect("Could not load config file");
+        let yaml_docs = YamlLoader::load_from_str(yaml_string.as_str()).expect("Invalid YAML in config.yaml");
 
         let yaml_config = &yaml_docs[0];
+
+        let scaling_override = if !yaml_config["config"]["scaling"].is_badvalue() {
+            yaml_config["config"]["scaling"].as_f64().unwrap()
+        } else {
+            0.0
+        };
 
         let mut dial = SurfaceDial::new();
 
@@ -198,6 +205,7 @@ Thank you again for participating!".to_string())),
 
         (
             DynBaseProgram {
+                scaling_override,
                 config: yaml_config.clone(),
                 app_state: AppState::Participant,
                 dial,
@@ -431,7 +439,11 @@ Thank you again for participating!".to_string())),
     }
 
     fn scale_factor(&self) -> f64 {
-        1.5
+        if self.scaling_override > 0.0 {
+            self.scaling_override
+        } else {
+            1.5
+        }
     }
 }
 
