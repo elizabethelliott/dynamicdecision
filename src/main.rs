@@ -29,22 +29,23 @@ use crate::views::ScreenCommand;
 use crate::data::write_data_file;
 use crate::data::partipant_data::ParticipantData;
 
-const VIDEOS: [&'static str; 12] = [
-    "../../videos/6/alibi1_control.mp4",
-    "../../videos/7/alibi1_control.mp4",
-    "../../videos/8/alibi1_control.mp4",
-    "../../videos/10/alibi1_control.mp4",
-    "../../videos/11/alibi1_control.mp4",
-    "../../videos/12/alibi1_control.mp4",
-    "../../videos/13/alibi1_control.mp4",
-    "../../videos/14/alibi1_control.mp4",
-    "../../videos/15/alibi1_control.mp4",
-    "../../videos/16/alibi1_control.mp4",
-    "../../videos/17/alibi1_control.mp4",
-    "../../videos/18/alibi1_control.mp4",
+const VIDEOS: [&'static str; 5] = [
+    "videos/6/alibi1_control.webm",
+    "videos/7/alibi1_control.webm",
+    "videos/8/alibi1_control.webm",
+    "videos/9/alibi1_control.webm",
+    "videos/10/alibi1_control.webm",
+    //"../../videos/11/alibi1_control.webm",
+    // "../../videos/12/alibi1_control.webm",
+    // "../../videos/13/alibi1_control.webm",
+    // "../../videos/14/alibi1_control.webm",
+    // "../../videos/15/alibi1_control.webm",
+    // "../../videos/16/alibi1_control.webm",
+    // "../../videos/17/alibi1_control.webm",
+    // "../../videos/18/alibi1_control.webm",
 ];
 
-const NUM_VIDEOS: usize = 10;
+const NUM_VIDEOS: usize = 5;
 
 enum AppState {
     Participant,

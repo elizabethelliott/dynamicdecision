@@ -1,4 +1,5 @@
 use std::borrow::BorrowMut;
+use std::env::current_exe;
 use std::time::Instant;
 use std::time::SystemTime;
 
@@ -224,7 +225,16 @@ impl DialView for ArcInputVideoView {
     }
 
     fn show(&mut self) {
-        self.video = Some(VideoPlayer::new(&Url::from_file_path(std::path::PathBuf::from(file!()).parent().unwrap().join(self.path).canonicalize().unwrap()).unwrap(), false).unwrap(),);
+        let path = std::path::PathBuf::from(current_exe().unwrap());
+        let root_path = path.parent().unwrap().parent().unwrap().parent().unwrap();
+
+        //println!("Looking for video in: {:?}", root_path);
+        
+        let uri = Url::from_file_path(root_path.join(self.path).canonicalize().unwrap()).unwrap();
+
+        //println!("Playing video: {}", uri);
+
+        self.video = Some(VideoPlayer::new(&uri, false).unwrap(),);
         self.video.as_mut().expect("No video is loaded").set_paused(false);
         self.value = 0;
         self.arc_input.set_value(0);
