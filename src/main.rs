@@ -29,23 +29,10 @@ use crate::views::ScreenCommand;
 use crate::data::write_data_file;
 use crate::data::partipant_data::ParticipantData;
 
-const VIDEOS: [&'static str; 5] = [
-    "videos/6/alibi1_control.webm",
-    "videos/7/alibi1_control.webm",
-    "videos/8/alibi1_control.webm",
-    "videos/9/alibi1_control.webm",
-    "videos/10/alibi1_control.webm",
-    //"../../videos/11/alibi1_control.webm",
-    // "../../videos/12/alibi1_control.webm",
-    // "../../videos/13/alibi1_control.webm",
-    // "../../videos/14/alibi1_control.webm",
-    // "../../videos/15/alibi1_control.webm",
-    // "../../videos/16/alibi1_control.webm",
-    // "../../videos/17/alibi1_control.webm",
-    // "../../videos/18/alibi1_control.webm",
+const VIDEO_NAMES: [&'static str; 2] = [
+    "alibi1_control.webm", // Lie
+    "alibi2_control.webm"  // Truth
 ];
-
-const NUM_VIDEOS: usize = 5;
 
 enum AppState {
     Participant,
@@ -58,6 +45,8 @@ enum AppState {
 struct DynBaseProgram<'a> {
     scaling_override: f64,
     config: Yaml,
+    valid_ids: Vec<u32>,
+    num_vids: usize,
     app_state: AppState,
     dial: SurfaceDial<'a>,
     current_screen: usize,
@@ -108,6 +97,25 @@ impl Application for DynBaseProgram<'_> {
             0.0
         };
 
+        let valid_ids: Vec<u32> = if !yaml_config["videos"]["ids"].is_badvalue() {
+            let yaml_ids = yaml_config["videos"]["ids"].as_vec().expect("Could not read video ids from config");
+            let mut ids: Vec<u32> = Vec::new();
+
+            for id in yaml_ids.iter() {
+                ids.push(id.as_i64().expect("Could not read video id") as u32);
+            }
+
+            ids
+        } else {
+            Vec::new()
+        };
+
+        let num_vids: usize = if !yaml_config["videos"]["num"].is_badvalue() {
+            yaml_config["videos"]["num"].as_i64().expect("Could not read valid number of videos from config") as usize
+        } else {
+            5
+        };
+
         let mut dial = SurfaceDial::new();
 
         dial.set_subdivisions(60);
@@ -125,16 +133,7 @@ As you watch the video, please decide, as quickly and accurately as possible, wh
 person in the video was lying or telling the truth and use the dial to render your decision by
 “locking in” your answer as demonstrated in the tutorial.".to_string()));
 
-        let mut screens: Vec<Box<dyn views::DialView>> = vec![
-            // Box::new(ArcInputVideoView::new(0)),
-            // Box::new(ArcDichotomousView::new(0)),
-            // Box::new(ArcInputVideoView::new(1)),
-            // Box::new(ArcDichotomousView::new(1)),
-            // Box::new(ArcInputVideoView::new(2)),
-            // Box::new(ArcDichotomousView::new(2)),
-            // Box::new(ArcInputVideoView::new(3)),
-            // Box::new(ArcDichotomousView::new(3)),
-        ];
+        let mut screens: Vec<Box<dyn views::DialView>> = vec![];
 
         let demographics_screens: Vec<Box<dyn views::DialView>> = vec![
             Box::new(TextInputView::new(
@@ -208,6 +207,8 @@ Thank you again for participating!".to_string())),
             DynBaseProgram {
                 scaling_override,
                 config: yaml_config.clone(),
+                valid_ids,
+                num_vids,
                 app_state: AppState::Participant,
                 dial,
                 current_screen: 0,
@@ -294,15 +295,20 @@ Thank you again for participating!".to_string())),
                                         data: info 
                                     });
 
-                                    let mut video_set = Vec::from(VIDEOS.clone());
+                                    let mut video_set = Vec::from(self.valid_ids.clone());
                                     
                                     // Create a new set of video screens
-                                    for i in 0..NUM_VIDEOS {
+                                    for i in 0..self.num_vids {
                                         // Select a random video path
-                                        let vid_index = (0..video_set.len()).choose(&mut thread_rng()).unwrap();
+                                        let index = (0..video_set.len()).choose(&mut thread_rng()).unwrap();
 
                                         // Remove the path from the set so it cannot be picked again
-                                        let vid_path = video_set.swap_remove(vid_index);
+                                        let vid_index = video_set.swap_remove(index);
+
+                                        let lie_truth_ind: usize = (rand::random::<u32>() % 2) as usize;
+                                        let vid_name = VIDEO_NAMES[lie_truth_ind].clone();
+
+                                        let vid_path = format!("videos/{}/{}", vid_index, vid_name);
 
                                         self.screens.push(Box::new(ArcInputVideoView::new(i, vid_path, control)));
                                         self.screens.push(Box::new(ArcDichotomousView::new(i, control)));

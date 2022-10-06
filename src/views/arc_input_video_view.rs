@@ -1,7 +1,6 @@
 use std::borrow::BorrowMut;
 use std::env::current_exe;
 use std::time::Instant;
-use std::time::SystemTime;
 
 use iced::Alignment;
 use iced::Column;
@@ -28,7 +27,7 @@ const MAX_VALUE: i32 = 10;
 
 struct DataStructure {
     id: usize,
-    path: &'static str,
+    path: String,
     control: bool,
     final_decision: i32,
     final_decision_timestamp: u128,
@@ -77,7 +76,7 @@ impl Printable for DataStructure {
 
 pub struct ArcInputVideoView {
     id: usize,
-    path: &'static str,
+    path: String,
     arc_input: ArcInput,
     value: i32,
     min_value: i32,
@@ -90,7 +89,7 @@ pub struct ArcInputVideoView {
 }
 
 impl DataStructure {
-    pub fn new(id: usize, path: &'static str, control: bool) -> DataStructure {
+    pub fn new(id: usize, path: String, control: bool) -> DataStructure {
         DataStructure {
             id,
             control,
@@ -103,7 +102,7 @@ impl DataStructure {
 }
 
 impl ArcInputVideoView {
-    pub fn new(id: usize, path: &'static str, control: bool) -> ArcInputVideoView {
+    pub fn new(id: usize, path: String, control: bool) -> ArcInputVideoView {
         let mut arc_input = ArcInput::new(MIN_VALUE, MAX_VALUE, 0, 90.0);
         if control {
             arc_input.set_right_label("Lie".to_string());
@@ -116,13 +115,13 @@ impl ArcInputVideoView {
 
         ArcInputVideoView {
             id,
-            path,
+            path: path.clone(),
             arc_input,
             value: 0,
             min_value: MIN_VALUE,
             max_value: MAX_VALUE,
             interim_decision: 0,
-            data: DataStructure::new(id, path, control),
+            data: DataStructure::new(id, path.clone(), control),
             timer: None,
             finished: false,
             video: None }
@@ -227,12 +226,7 @@ impl DialView for ArcInputVideoView {
     fn show(&mut self) {
         let path = std::path::PathBuf::from(current_exe().unwrap());
         let root_path = path.parent().unwrap().parent().unwrap().parent().unwrap();
-
-        //println!("Looking for video in: {:?}", root_path);
-        
-        let uri = Url::from_file_path(root_path.join(self.path).canonicalize().unwrap()).unwrap();
-
-        //println!("Playing video: {}", uri);
+        let uri = Url::from_file_path(root_path.join(self.path.clone()).canonicalize().unwrap()).unwrap();
 
         self.video = Some(VideoPlayer::new(&uri, false).unwrap(),);
         self.video.as_mut().expect("No video is loaded").set_paused(false);
