@@ -187,6 +187,18 @@ impl DialView for ArcInputVideoView {
             _ => {}
         }
 
+        // Check to see if we've reached the end of the video (with some buffer)
+        if self.video.as_ref().expect("No video is playing").position().as_millis() + 25 >= self.video.as_ref().expect("No video is playing").duration().as_millis() {
+            self.data.final_decision = self.value;
+            self.data.final_decision_timestamp = self.video.as_mut().expect("No video is playing").position().as_millis();
+            self.timer = None;
+
+            self.arc_input.set_disabled(true);
+            self.video.as_mut().expect("No video is playing").set_paused(true);
+
+            self.finished = true;
+        }
+
         // Wait to record a point if the user doesn't move the dial for 500ms
         if let Some(timer) = self.timer {
             if timer.elapsed().as_millis() > 500 {
