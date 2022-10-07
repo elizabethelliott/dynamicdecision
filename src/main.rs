@@ -1,5 +1,7 @@
 use std::fs;
 use std::time::Duration;
+use rand::Rng;
+use rand::rngs::ThreadRng;
 use rand::{thread_rng, seq::IteratorRandom};
 
 use surface_dial_rs::SurfaceDial;
@@ -46,6 +48,7 @@ struct DynBaseProgram<'a> {
     scaling_override: f64,
     config: Yaml,
     valid_ids: Vec<u32>,
+    video_distributions: Vec<usize>,
     num_vids: usize,
     app_state: AppState,
     dial: SurfaceDial<'a>,
@@ -113,8 +116,12 @@ impl Application for DynBaseProgram<'_> {
         let num_vids: usize = if !yaml_config["videos"]["num"].is_badvalue() {
             yaml_config["videos"]["num"].as_i64().expect("Could not read valid number of videos from config") as usize
         } else {
-            5
+            4
         };
+
+        let mut video_distributions = vec![ num_vids / 2, num_vids / 2 ];
+        let leftover_videos = num_vids % 2;
+        video_distributions[0] += leftover_videos;
 
         let mut dial = SurfaceDial::new();
 
@@ -208,6 +215,7 @@ Thank you again for participating!".to_string())),
                 scaling_override,
                 config: yaml_config.clone(),
                 valid_ids,
+                video_distributions,
                 num_vids,
                 app_state: AppState::Participant,
                 dial,
@@ -269,7 +277,7 @@ Thank you again for participating!".to_string())),
                         if let Some(config) = c {
                             if config.contains_key("id") {
                                 let id = config["id"].parse::<usize>().unwrap();
-                                println!("Got the ID: {}!", id);
+                                println!("Preparing run for participant {}!", id);
 
                                 let info = self.config["participants"][id].clone();
 
@@ -296,6 +304,7 @@ Thank you again for participating!".to_string())),
                                     });
 
                                     let mut video_set = Vec::from(self.valid_ids.clone());
+                                    let mut vid_dist = self.video_distributions.clone();
                                     
                                     // Create a new set of video screens
                                     for i in 0..self.num_vids {
@@ -305,10 +314,21 @@ Thank you again for participating!".to_string())),
                                         // Remove the path from the set so it cannot be picked again
                                         let vid_index = video_set.swap_remove(index);
 
-                                        let lie_truth_ind: usize = (rand::random::<u32>() % 2) as usize;
+                                        let mut rng: ThreadRng = thread_rng();
+                                        let mut lie_truth_ind: usize = rng.gen_range(0..=1);
+                                        
+                                        // If we've exhausted this specific bucket, pick the other one
+                                        if vid_dist[lie_truth_ind] <= 0 {
+                                            lie_truth_ind = (lie_truth_ind + 1) % 2;
+                                        }
+
+                                        vid_dist[lie_truth_ind] -= 1;
+
                                         let vid_name = VIDEO_NAMES[lie_truth_ind].clone();
 
                                         let vid_path = format!("videos/{}/{}", vid_index, vid_name);
+
+                                        println!("Video: {}", vid_path);
 
                                         self.screens.push(Box::new(ArcInputVideoView::new(i, vid_path, control)));
                                         self.screens.push(Box::new(ArcDichotomousView::new(i, control)));
