@@ -63,7 +63,7 @@ impl Printable for DataStructure {
         for point in self.data_points.iter() {
             final_string.push_str(format!("decision,{},{}\n", point.timestamp, point.value * multiplier).as_str());
         }
-        final_string.push_str(format!("final,{},{}\n", self.final_decision_timestamp, self.final_decision).as_str());
+        final_string.push_str(format!("final,{},{}\n", self.final_decision_timestamp, self.final_decision * multiplier).as_str());
         
         final_string
     }
