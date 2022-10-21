@@ -14,6 +14,7 @@ use native_dialog::{MessageDialog, MessageType};
 
 use iced::{executor, time, window, Application, Command, Element, Settings, Subscription};
 use iced::keyboard::{self, KeyCode};
+use views::image_view::ImageView;
 use views::participant_id_view::ParticipantIdView;
 use yaml_rust::{YamlLoader, Yaml};
 
@@ -55,7 +56,8 @@ struct DynBaseProgram<'a> {
     current_screen: usize,
     participant_data: Option<ParticipantData>,
     participant_screen: Box<dyn views::DialView>,
-    instruction_screen: Box<dyn views::DialView>,
+    instruction_screen: usize,
+    all_instruction_screens: Vec<Box<dyn views::DialView>>,
     screens: Vec<Box<dyn views::DialView>>,
     demographics_screens: Vec<Box<dyn views::DialView>>,
     final_screen: Box<dyn views::DialView>,
@@ -129,16 +131,23 @@ impl Application for DynBaseProgram<'_> {
 
         let participant_screen: Box<dyn views::DialView> = Box::new(ParticipantIdView::new());
 
-        let instruction_screen: Box<dyn views::DialView> = Box::new(InfoView::new("Instructions".to_string(), 
-        "In this study, you will watch video clips of different people providing an alibi, and answering
-questions provided by an experimenter. Some people will be lying, whereas others will be telling
-the truth. The clips will be randomly presented, so that each adult has a 50-50 likelihood of
-telling the truth or lying. The segments are also independent. This means that if the person in
-Clip 1 is telling the truth, there is still a 50-50 chance that the person in Clip 2 is telling the truth
-or lying, and so on.\n\n
-As you watch the video, please decide, as quickly and accurately as possible, whether the
-person in the video was lying or telling the truth and use the dial to render your decision by
-“locking in” your answer as demonstrated in the tutorial.".to_string()));
+        let all_instruction_screens: Vec<Box<dyn views::DialView>> = vec![
+            Box::new(ImageView::new("Instructions".to_string(), "images/dynamic-1.png".to_string())),
+            Box::new(ImageView::new("Instructions".to_string(), "images/dichotomous-1.png".to_string())),
+        ];
+
+        let instruction_screen: usize = 0;
+
+//         let instruction_screen: Box<dyn views::DialView> = Box::new(InfoView::new("Instructions".to_string(), 
+//         "In this study, you will watch video clips of different people providing an alibi, and answering
+// questions provided by an experimenter. Some people will be lying, whereas others will be telling
+// the truth. The clips will be randomly presented, so that each adult has a 50-50 likelihood of
+// telling the truth or lying. The segments are also independent. This means that if the person in
+// Clip 1 is telling the truth, there is still a 50-50 chance that the person in Clip 2 is telling the truth
+// or lying, and so on.\n\n
+// As you watch the video, please decide, as quickly and accurately as possible, whether the
+// person in the video was lying or telling the truth and use the dial to render your decision by
+// “locking in” your answer as demonstrated in the tutorial.".to_string()));
 
         let mut screens: Vec<Box<dyn views::DialView>> = vec![];
 
@@ -222,6 +231,7 @@ Thank you again for participating!".to_string())),
                 current_screen: 0,
                 participant_data: None,
                 participant_screen,
+                all_instruction_screens,
                 instruction_screen,
                 screens,
                 demographics_screens,
@@ -239,7 +249,7 @@ Thank you again for participating!".to_string())),
         let mut command = ScreenCommand::None;
         let screen = match self.app_state {
             AppState::Participant => &mut self.participant_screen,
-            AppState::Instructions => &mut self.instruction_screen,
+            AppState::Instructions => &mut self.all_instruction_screens[self.instruction_screen],
             AppState::Videos => &mut self.screens[self.current_screen],
             AppState::Demographics => &mut self.demographics_screens[self.current_screen],
             AppState::Final => &mut self.final_screen,
@@ -295,7 +305,15 @@ Thank you again for participating!".to_string())),
                                     self.participant_screen.init();
                                     self.participant_screen.show();
                                 } else {
-                                    let control = info["control"].as_bool().expect(format!("Participant {} is missing the control parameter", id).as_str());
+                                    let counterbalance = info["counterbalance"].as_bool().expect(format!("Participant {} is missing the counterbalance parameter", id).as_str());
+                                    let condition = info["condition"].as_str().expect(format!("Participant {} is missing the condition parameter", id).as_str()).to_string();
+                                    let allow_lockin: bool = condition == "dynamic";
+                                    
+                                    // Make sure to show the correct instructions
+                                    self.instruction_screen = 0;
+                                    if condition == "dichotomous" {
+                                        self.instruction_screen = 1;
+                                    }
 
                                     // Store the participant info and move on to instructions
                                     self.participant_data = Some(ParticipantData { 
@@ -330,8 +348,11 @@ Thank you again for participating!".to_string())),
 
                                         println!("Video: {}", vid_path);
 
-                                        self.screens.push(Box::new(ArcInputVideoView::new(i, vid_path, control)));
-                                        self.screens.push(Box::new(ArcDichotomousView::new(i, control)));
+                                        self.screens.push(Box::new(ArcInputVideoView::new(i, vid_path, counterbalance, allow_lockin)));
+
+                                        if condition == "dichotomous" {
+                                            self.screens.push(Box::new(ArcDichotomousView::new(i, counterbalance)));
+                                        }
                                     }
 
                                     self.participant_screen.hide();
@@ -339,16 +360,16 @@ Thank you again for participating!".to_string())),
                                     // Switch to the instructions
                                     self.app_state = AppState::Instructions;
 
-                                    self.instruction_screen.init();
-                                    self.instruction_screen.show();
+                                    self.all_instruction_screens[self.instruction_screen].init();
+                                    self.all_instruction_screens[self.instruction_screen].show();
 
-                                    self.update_dial_settings(self.instruction_screen.arc_settings());
+                                    self.update_dial_settings(self.all_instruction_screens[self.instruction_screen].arc_settings());
                                 }
                             }
                         }
                     },
                     AppState::Instructions => {
-                        self.instruction_screen.hide();
+                        self.all_instruction_screens[self.instruction_screen].hide();
 
                         self.app_state = AppState::Videos;
 
@@ -454,7 +475,7 @@ Thank you again for participating!".to_string())),
     fn view(&mut self) -> Element<Message> {
         match self.app_state {
             AppState::Participant => return self.participant_screen.view(),
-            AppState::Instructions => return self.instruction_screen.view(),
+            AppState::Instructions => return self.all_instruction_screens[self.instruction_screen].view(),
             AppState::Videos => return self.screens[self.current_screen].view(),
             AppState::Demographics => return self.demographics_screens[self.current_screen].view(),
             AppState::Final => return self.final_screen.view(),

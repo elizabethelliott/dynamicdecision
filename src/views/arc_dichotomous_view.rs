@@ -26,7 +26,7 @@ const MAX_VALUE: i32 = 1;
 
 struct DataStructure {
     id: usize,
-    control: bool,
+    counterbalance: bool,
     final_decision: i32,
     final_decision_timestamp: u128,
     data_points: Vec<DataPoint>
@@ -54,16 +54,26 @@ impl ExperimentData for DataStructure {
 impl Printable for DataStructure {
     fn to_csv(&self) -> String {
         let mut final_string: String = "".to_string();
-        let multiplier = if self.control {
+        let multiplier = if self.counterbalance {
             -1
         } else {
             1
         };
 
-        for point in self.data_points.iter() {
-            final_string.push_str(format!("decision,{},{}\n", point.timestamp, point.value * multiplier).as_str());
+        // Limit the output to 0 (lie) and 1 (truth)
+        let mut output_decision = self.final_decision * multiplier;
+        if output_decision < 0 {
+            output_decision = 0;
         }
-        final_string.push_str(format!("final,{},{}\n", self.final_decision_timestamp, self.final_decision * multiplier).as_str());
+
+        for point in self.data_points.iter() {
+            let mut decision = point.value * multiplier;
+            if decision < 0 {
+                decision = 0;
+            }
+            final_string.push_str(format!("decision,{},{}\n", point.timestamp, decision).as_str());
+        }
+        final_string.push_str(format!("final,{},{}\n", self.final_decision_timestamp, output_decision).as_str());
         
         final_string
     }
@@ -71,7 +81,7 @@ impl Printable for DataStructure {
 
 pub struct ArcDichotomousView {
     id: usize,
-    control: bool,
+    counterbalance: bool,
     arc_input: ArcInput,
     value: i32,
     min_value: i32,
@@ -84,10 +94,10 @@ pub struct ArcDichotomousView {
 }
 
 impl DataStructure {
-    pub fn new(id: usize, control: bool) -> DataStructure {
+    pub fn new(id: usize, counterbalance: bool) -> DataStructure {
         DataStructure { 
             id,
-            control,
+            counterbalance,
             final_decision: 0,
             final_decision_timestamp: 0,
             data_points: Vec::new() 
@@ -96,9 +106,9 @@ impl DataStructure {
 }
 
 impl ArcDichotomousView {
-    pub fn new(id: usize, control: bool) -> ArcDichotomousView {
+    pub fn new(id: usize, counterbalance: bool) -> ArcDichotomousView {
         let mut arc_input = ArcInput::new(MIN_VALUE, MAX_VALUE, 0, 90.0);
-        if control {
+        if counterbalance {
             arc_input.set_right_label("Lie".to_string());
             arc_input.set_left_label("Truth".to_string());
         } else {
@@ -110,13 +120,13 @@ impl ArcDichotomousView {
 
         ArcDichotomousView {
             id,
-            control,
+            counterbalance,
             arc_input,
             value: 0,
             min_value: MIN_VALUE,
             max_value: MAX_VALUE,
             interim_decision: 0,
-            data: DataStructure::new(id, control),
+            data: DataStructure::new(id, counterbalance),
             timer: None,
             finished: false,
             show_time: SystemTime::now()
@@ -140,12 +150,12 @@ impl DialView for ArcDichotomousView {
                     match direction {
                         DialDirection::Clockwise => {
                             if !self.arc_input.is_disabled() && self.value + 1 <= self.max_value { 
-                                self.value += 1;
+                                self.value = self.max_value;
                             }
                         },
                         DialDirection::Counterclockwise => {
                             if !self.arc_input.is_disabled() && self.value > self.min_value { 
-                                self.value -= 1;
+                                self.value = self.min_value;
                             }
                         }
                     }

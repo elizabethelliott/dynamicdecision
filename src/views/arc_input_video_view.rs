@@ -28,7 +28,7 @@ const MAX_VALUE: i32 = 10;
 struct DataStructure {
     id: usize,
     path: String,
-    control: bool,
+    counterbalance: bool,
     final_decision: i32,
     final_decision_timestamp: u128,
     data_points: Vec<DataPoint>
@@ -56,13 +56,13 @@ impl ExperimentData for DataStructure {
 impl Printable for DataStructure {
     fn to_csv(&self) -> String {
         let mut final_string: String = "".to_string();
-        let multiplier = if self.control {
+        let multiplier = if self.counterbalance {
             -1
         } else {
             1
         };
 
-        final_string.push_str(format!("control,0,{}\n", self.control).as_str());
+        final_string.push_str(format!("counterbalance,0,{}\n", self.counterbalance).as_str());
         final_string.push_str(format!("path,0,{}\n", self.path).as_str());
 
         for point in self.data_points.iter() {
@@ -85,14 +85,15 @@ pub struct ArcInputVideoView {
     video: Option<VideoPlayer>,
     data: DataStructure,
     timer: Option<Instant>,
-    finished: bool
+    finished: bool,
+    allow_lockin: bool
 }
 
 impl DataStructure {
-    pub fn new(id: usize, path: String, control: bool) -> DataStructure {
+    pub fn new(id: usize, path: String, counterbalance: bool) -> DataStructure {
         DataStructure {
             id,
-            control,
+            counterbalance,
             path,
             final_decision: 0,
             final_decision_timestamp: 0,
@@ -102,9 +103,9 @@ impl DataStructure {
 }
 
 impl ArcInputVideoView {
-    pub fn new(id: usize, path: String, control: bool) -> ArcInputVideoView {
+    pub fn new(id: usize, path: String, counterbalance: bool, allow_lockin: bool) -> ArcInputVideoView {
         let mut arc_input = ArcInput::new(MIN_VALUE, MAX_VALUE, 0, 90.0);
-        if control {
+        if counterbalance {
             arc_input.set_right_label("Lie".to_string());
             arc_input.set_left_label("Truth".to_string());
         } else {
@@ -121,9 +122,10 @@ impl ArcInputVideoView {
             min_value: MIN_VALUE,
             max_value: MAX_VALUE,
             interim_decision: 0,
-            data: DataStructure::new(id, path.clone(), control),
+            data: DataStructure::new(id, path.clone(), counterbalance),
             timer: None,
             finished: false,
+            allow_lockin,
             video: None }
     }
 }
@@ -164,16 +166,18 @@ impl DialView for ArcInputVideoView {
                 if let TopLevelEvent::DialEvent(DialEvent::Button { pressed }) = &e {
                     if *pressed {
                         if !self.finished {
-                            self.data.final_decision = self.value;
-                            self.data.final_decision_timestamp = self.video.as_mut().expect("No video is playing").position().as_millis();
-                            self.timer = None;
+                            if self.allow_lockin {
+                                self.data.final_decision = self.value;
+                                self.data.final_decision_timestamp = self.video.as_mut().expect("No video is playing").position().as_millis();
+                                self.timer = None;
 
-                            self.arc_input.set_disabled(true);
-                            self.video.as_mut().expect("No video is playing").set_paused(true);
+                                self.arc_input.set_disabled(true);
+                                self.video.as_mut().expect("No video is playing").set_paused(true);
 
-                            self.finished = true;
+                                self.finished = true;
 
-                            //println!("The user made a decision! {}", self.data.final_decision);
+                                //println!("The user made a decision! {}", self.data.final_decision);
+                            }
                         } else {
                             return ScreenCommand::NextScreen(None);
                         }
@@ -230,6 +234,9 @@ impl DialView for ArcInputVideoView {
             }
 
             column = column.push(self.arc_input.view())
+                .push(Text::new("\n\n0").size(22).height(Length::Shrink))
+                .push(Text::new("Your last decision will be made final at the end of the video").size(16))
+                .push(Text::new("\n\n\n0").size(22).height(Length::Shrink))
                 .push(Text::new(if self.finished { "Press down on the dial to continue" } else { "" }).size(25));
             
             column.into()
