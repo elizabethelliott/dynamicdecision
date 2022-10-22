@@ -36,7 +36,8 @@ struct DataStructure {
 
 struct DataPoint {
     timestamp: u128,
-    value: i32
+    value: i32,
+    velocity: f32
 }
 
 impl ExperimentData for DataStructure {
@@ -45,7 +46,7 @@ impl ExperimentData for DataStructure {
     }
 
     fn headers(&self) -> String {
-        "type,timestamp,value".to_string()
+        "type,timestamp,value,velocity".to_string()
     }
 
     fn data(&self) -> Box<&dyn Printable> {
@@ -62,13 +63,13 @@ impl Printable for DataStructure {
             1
         };
 
-        final_string.push_str(format!("counterbalance,0,{}\n", self.counterbalance).as_str());
-        final_string.push_str(format!("path,0,{}\n", self.path).as_str());
+        final_string.push_str(format!("counterbalance,0,{},0.0\n", self.counterbalance).as_str());
+        final_string.push_str(format!("path,0,{},0.0\n", self.path).as_str());
 
         for point in self.data_points.iter() {
-            final_string.push_str(format!("decision,{},{}\n", point.timestamp, point.value * multiplier).as_str());
+            final_string.push_str(format!("decision,{},{},{}\n", point.timestamp, point.value * multiplier, point.velocity).as_str());
         }
-        final_string.push_str(format!("final,{},{}\n", self.final_decision_timestamp, self.final_decision * multiplier).as_str());
+        final_string.push_str(format!("final,{},{},0.0\n", self.final_decision_timestamp, self.final_decision * multiplier).as_str());
         
         final_string
     }
@@ -79,6 +80,8 @@ pub struct ArcInputVideoView {
     path: String,
     arc_input: ArcInput,
     value: i32,
+    velocity: f32,
+    samples: u32,
     min_value: i32,
     max_value: i32,
     interim_decision: i32,
@@ -119,6 +122,8 @@ impl ArcInputVideoView {
             path: path.clone(),
             arc_input,
             value: 0,
+            velocity: 0.0,
+            samples: 0,
             min_value: MIN_VALUE,
             max_value: MAX_VALUE,
             interim_decision: 0,
@@ -155,9 +160,26 @@ impl DialView for ArcInputVideoView {
                         }
                     }
 
+                    let old_timer = self.timer;
+
                     if self.interim_decision != self.value {
                         self.interim_decision = self.value;
                         self.timer = Some(Instant::now());
+
+                        if let Some(ot) = old_timer {
+                            let delta = self.timer.expect("Somehow there's no timer?").duration_since(ot);
+                            let time_diff = delta.as_millis();
+                            let instant_vel = 1.0 / (time_diff as f32 / 1000.0);
+    
+                            println!("Instant: {}, diff = {}", instant_vel, time_diff);
+                            
+                            // Calculate ticks per second
+                            self.velocity += instant_vel;
+                            self.samples += 1;
+                        } else {
+                            self.velocity = 1.0;
+                            self.samples += 1;
+                        }
                     }
 
                     self.arc_input.set_value(self.value);
@@ -206,11 +228,15 @@ impl DialView for ArcInputVideoView {
         // Wait to record a point if the user doesn't move the dial for 500ms
         if let Some(timer) = self.timer {
             if timer.elapsed().as_millis() > 500 {
+                println!("Velocity: {}", self.velocity);
                 self.data.data_points.push(DataPoint {
                     timestamp: self.video.as_mut().expect("No video is playing").position().as_millis(),
                     value: self.value,
+                    velocity: self.velocity / self.samples as f32
                 });
                 self.timer = None;
+                self.velocity = 0.0;
+                self.samples = 0;
 
                 //println!("Stored a point! {}", self.value);
             }
