@@ -60,7 +60,7 @@ def write_to_xlsx(participant, data):
     for v_id in sorted(data['videos'].keys()):
         counterbalance = data['videos'][v_id]['counterbalance']
 
-        video_worksheet = workbook.create_sheet(f'Video {v_id}')
+        video_worksheet = workbook.create_sheet(f'Video {v_id+1}')
 
         write_data_to_cells(video_worksheet, 1, ('Video path', data['videos'][v_id]['video_filename']))
 
@@ -95,7 +95,7 @@ def write_to_xlsx(participant, data):
             write_data_to_cells(video_worksheet, current_row, ('Final timestamp', 'Final decision'), starting_column=5, bold=True)
 
             current_row += 1
-            write_data_to_cells(video_worksheet, current_row, data['videos'][v_id]['dichtomous_final'], starting_column=5)
+            write_data_to_cells(video_worksheet, current_row, data['videos'][v_id]['dichotomous_final'], starting_column=5)
 
     write_data_to_cells(demographics_worksheet, 4, ('Counterbalance', counterbalance))
 
@@ -127,7 +127,7 @@ if __name__ == '__main__':
             if dynamic_filename.match(f):
                 video_id = extract_video_id(dynamic_filename, f)
 
-                if video_id:
+                if video_id is not None:
                     videos = setup_video_struct(videos, video_id)
 
                     with open(d + '/' + f, 'r') as csv_file:
@@ -139,7 +139,7 @@ if __name__ == '__main__':
                         csv_file.seek(0)
                         videos['videos'][video_id]['video_filename'] = [d['value'] for d in csv_data if d['type'] == 'path'][0]
                         csv_file.seek(0)
-                        videos['videos'][video_id]['counterbalance'] = [d['value'] == 'true' for d in csv_data if d['type'] == 'path'][0]
+                        videos['videos'][video_id]['counterbalance'] = [d['value'] == 'true' for d in csv_data if d['type'] == 'counterbalance'][0]
             elif dichotomous_filename.match(f):
                 video_id = extract_video_id(dichotomous_filename, f)
 
@@ -149,7 +149,7 @@ if __name__ == '__main__':
                     with open(d + '/' + f, 'r') as csv_file:
                         csv_data = csv.DictReader(csv_file)
 
-                        videos['videos'][video_id]['dichotomous_decisions'] = [(int(d['timestamp']), int(d['value']), float(d['velocity'])) for d in csv_data if d['type'] == 'decision']
+                        videos['videos'][video_id]['dichotomous_decisions'] = [(int(d['timestamp']), int(d['value'])) for d in csv_data if d['type'] == 'decision']
                         csv_file.seek(0)
                         videos['videos'][video_id]['dichotomous_final'] = [(int(d['timestamp']), int(d['value'])) for d in csv_data if d['type'] == 'final'][0]
 
