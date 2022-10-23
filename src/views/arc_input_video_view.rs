@@ -263,7 +263,7 @@ impl DialView for ArcInputVideoView {
                 .push(Text::new("\n\n0").size(22).height(Length::Shrink))
                 .push(Text::new("Your last decision will be made final at the end of the video").size(16))
                 .push(Text::new("\n\n\n0").size(22).height(Length::Shrink))
-                .push(Text::new(if self.finished { "Press down on the dial to continue" } else { "" }).size(25));
+                .push(Text::new(if self.finished { "Press down on the dial to continue" } else { "" }).size(18));
             
             column.into()
     }
