@@ -48,3 +48,4 @@ pub mod info_view;
 pub mod multichoice_view;
 pub mod textinput_view;
 pub mod image_view;
+pub mod video_view;

@@ -16,6 +16,7 @@ use iced::{executor, time, window, Application, Command, Element, Settings, Subs
 use iced::keyboard::{self, KeyCode};
 use views::image_view::ImageView;
 use views::participant_id_view::ParticipantIdView;
+use views::video_view::VideoView;
 use yaml_rust::{YamlLoader, Yaml};
 
 pub mod arc_input;
@@ -39,6 +40,7 @@ const VIDEO_NAMES: [&'static str; 2] = [
 
 enum AppState {
     Participant,
+    Consent,
     Instructions,
     Videos,
     Demographics,
@@ -56,6 +58,7 @@ struct DynBaseProgram<'a> {
     current_screen: usize,
     participant_data: Option<ParticipantData>,
     participant_screen: Box<dyn views::DialView>,
+    consent_screens: Vec<Box<dyn views::DialView>>,
     instruction_screen: usize,
     all_instruction_screens: Vec<Box<dyn views::DialView>>,
     screens: Vec<Box<dyn views::DialView>>,
@@ -128,6 +131,13 @@ impl Application for DynBaseProgram<'_> {
         let mut dial = SurfaceDial::new();
 
         dial.set_subdivisions(60);
+
+        let consent_screens: Vec<Box<dyn views::DialView>> = vec![
+            Box::new(ImageView::new("Consent".to_string(), "images/consent-1.png".to_string())),
+            Box::new(ImageView::new("Consent".to_string(), "images/consent-2.png".to_string())),
+            Box::new(ImageView::new("Consent".to_string(), "images/consent-3.png".to_string())),
+            Box::new(VideoView::new("videos/tutorial.webm".to_string())),
+        ];
 
         let participant_screen: Box<dyn views::DialView> = Box::new(ParticipantIdView::new());
 
@@ -231,6 +241,7 @@ Thank you again for participating!".to_string())),
                 current_screen: 0,
                 participant_data: None,
                 participant_screen,
+                consent_screens,
                 all_instruction_screens,
                 instruction_screen,
                 screens,
@@ -249,6 +260,7 @@ Thank you again for participating!".to_string())),
         let mut command = ScreenCommand::None;
         let screen = match self.app_state {
             AppState::Participant => &mut self.participant_screen,
+            AppState::Consent => &mut self.consent_screens[self.current_screen],
             AppState::Instructions => &mut self.all_instruction_screens[self.instruction_screen],
             AppState::Videos => &mut self.screens[self.current_screen],
             AppState::Demographics => &mut self.demographics_screens[self.current_screen],
@@ -357,16 +369,37 @@ Thank you again for participating!".to_string())),
 
                                     self.participant_screen.hide();
 
-                                    // Switch to the instructions
-                                    self.app_state = AppState::Instructions;
+                                    // Switch to the consent
+                                    self.app_state = AppState::Consent;
 
-                                    self.all_instruction_screens[self.instruction_screen].init();
-                                    self.all_instruction_screens[self.instruction_screen].show();
+                                    self.consent_screens[self.current_screen].init();
+                                    self.consent_screens[self.current_screen].show();
 
-                                    self.update_dial_settings(self.all_instruction_screens[self.instruction_screen].arc_settings());
+                                    self.update_dial_settings(self.consent_screens[self.current_screen].arc_settings());
                                 }
                             }
                         }
+                    },
+                    AppState::Consent => {
+                        if self.current_screen + 1 < self.consent_screens.len() {                
+                            self.current_screen += 1;
+        
+                            self.consent_screens[self.current_screen].init();
+                            self.consent_screens[self.current_screen].show();
+        
+                            self.update_dial_settings(self.consent_screens[self.current_screen].arc_settings());
+                        } else if self.current_screen + 1 >= self.consent_screens.len() {
+                            self.current_screen = 0;
+
+                            // Switch to the instructions
+                            self.app_state = AppState::Instructions;
+
+                            self.all_instruction_screens[self.instruction_screen].init();
+                            self.all_instruction_screens[self.instruction_screen].show();
+
+                            self.update_dial_settings(self.all_instruction_screens[self.instruction_screen].arc_settings());
+                        }
+                        
                     },
                     AppState::Instructions => {
                         self.all_instruction_screens[self.instruction_screen].hide();
@@ -475,6 +508,7 @@ Thank you again for participating!".to_string())),
     fn view(&mut self) -> Element<Message> {
         match self.app_state {
             AppState::Participant => return self.participant_screen.view(),
+            AppState::Consent => return self.consent_screens[self.current_screen].view(),
             AppState::Instructions => return self.all_instruction_screens[self.instruction_screen].view(),
             AppState::Videos => return self.screens[self.current_screen].view(),
             AppState::Demographics => return self.demographics_screens[self.current_screen].view(),
