@@ -129,9 +129,9 @@ if __name__ == '__main__':
                                 data_struct = (
                                     participant_id,
                                     final_dynamic_decision[0],
-                                    final_dynamic_decision[1],
+                                    int(final_dynamic_decision[1])/1000.0,
                                     dichtomous_decision[0],
-                                    dichtomous_decision[1],
+                                    int(dichtomous_decision[1])/1000.0,
                                     None,
                                     None,
                                 )
@@ -153,9 +153,12 @@ if __name__ == '__main__':
                                 None,
                                 None,
                                 final_dynamic_decision[0],
-                                final_dynamic_decision[1]
+                                int(final_dynamic_decision[1])/1000.0,
                             )
 
-                        videos['videos'][video_id][lt_str].append(data_struct)
+                        if participant_id % 2 == 0:
+                            videos['videos'][video_id][lt_str].insert(0, data_struct)
+                        else:
+                            videos['videos'][video_id][lt_str].append(data_struct)
 
     write_to_xlsx(videos)
