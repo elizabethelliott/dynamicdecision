@@ -127,7 +127,7 @@ impl DialView for LockInVideoView {
             column = column.push(Text::new("Video is loading"));
         }
 
-        column = column.push(Text::new(if self.finished { "Press down on the dial to continue" } else { "" }).size(18));
+        column = column.push(Text::new(if self.finished { "Now, press down on the dial to continue" } else { "Press down on the dial when you have made your decision" }).size(18));
 
         column.into()
     }
@@ -149,7 +149,7 @@ impl DialView for LockInVideoView {
     }
 
     fn data(&self) -> Option<Box<&dyn super::ExperimentData>> {
-        None
+        Some(Box::new(&self.data))
     }
 
     fn arc_settings(&self) -> Option<super::ArcSettings> {

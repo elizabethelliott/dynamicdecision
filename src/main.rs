@@ -33,6 +33,7 @@ use crate::views::ScreenCommand;
 use crate::data::write_data_file;
 use crate::data::partipant_data::ParticipantData;
 use crate::views::arc_question_scale::ArcQuestionScaleView;
+use crate::views::lock_in_video_view::LockInVideoView;
 
 const VIDEO_NAMES: [&'static str; 2] = [
     "alibi1_control.webm", // Lie
@@ -321,11 +322,10 @@ Thank you again for participating!".to_string())),
                                 } else {
                                     let counterbalance = info["counterbalance"].as_bool().expect(format!("Participant {} is missing the counterbalance parameter", id).as_str());
                                     let condition = info["condition"].as_str().expect(format!("Participant {} is missing the condition parameter", id).as_str()).to_string();
-                                    let allow_lockin: bool = condition == "dynamic";
                                     
                                     // Make sure to show the correct instructions
                                     self.instruction_screen = 0;
-                                    if condition == "dichotomous" {
+                                    if condition == "final" {
                                         self.instruction_screen = 1;
                                     }
 
@@ -362,13 +362,14 @@ Thank you again for participating!".to_string())),
 
                                         println!("Video: {}", vid_path);
 
-                                        self.screens.push(Box::new(ArcInputVideoView::new(i, vid_path, counterbalance, allow_lockin)));
-
-                                        if condition == "dichotomous" {
-                                            self.screens.push(Box::new(ArcDichotomousView::new(i, counterbalance)));
+                                        if condition == "throughout" {
+                                            self.screens.push(Box::new(ArcInputVideoView::new(i, vid_path, counterbalance, true)));
+                                        } else if condition == "final" {
+                                            self.screens.push(Box::new(LockInVideoView::new(i, vid_path)));
+                                            self.screens.push(Box::new(ArcQuestionScaleView::new(i, "lie_truth_lock_in_decision".to_string(), "Was the person lying or telling the truth?".to_string(), "Lie".to_string(), "Truth".to_string(), -10, 10, 0, 60)));
                                         }
 
-                                        self.screens.push(Box::new(ArcQuestionScaleView::new(i, "confidence".to_string(), "How confident are you in your decision?".to_string(), "0".to_string(), "100".to_string(), 0, 100, 0)));
+                                        self.screens.push(Box::new(ArcQuestionScaleView::new(i, "confidence".to_string(), "How confident are you in your decision?".to_string(), "0".to_string(), "100".to_string(), 0, 100, 0, 80)));
                                         self.screens.push(Box::new(InfoView::new("Reminder".to_string(), "Remember, be as quick and accurate as possible. Please keep your hand on the dial at all times.".to_string())))
                                     }
 

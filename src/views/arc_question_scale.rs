@@ -72,6 +72,7 @@ pub struct ArcQuestionScaleView {
     data: DataStructure,
     timer: Option<Instant>,
     finished: bool,
+    subdivisions: u16,
     show_time: SystemTime
 }
 
@@ -88,7 +89,7 @@ impl DataStructure {
 }
 
 impl ArcQuestionScaleView {
-    pub fn new(id: usize, name: String, question: String, left_label: String, right_label: String, min: i32, max: i32, initial: i32) -> ArcQuestionScaleView {
+    pub fn new(id: usize, name: String, question: String, left_label: String, right_label: String, min: i32, max: i32, initial: i32, subdivisions: u16) -> ArcQuestionScaleView {
         let mut arc_input = ArcInput::new(min, max, 0, initial, 90.0);
         arc_input.set_left_label(left_label);
         arc_input.set_right_label(right_label);
@@ -106,6 +107,7 @@ impl ArcQuestionScaleView {
             data: DataStructure::new(id, name),
             timer: None,
             finished: false,
+            subdivisions,
             show_time: SystemTime::now()
         }
     }
@@ -220,7 +222,7 @@ impl DialView for ArcQuestionScaleView {
 
     fn arc_settings(&self) -> Option<super::ArcSettings> {
         Some(super::ArcSettings {
-            divisions: 80
+            divisions: self.subdivisions
         })
     }
 
