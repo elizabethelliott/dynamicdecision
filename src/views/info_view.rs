@@ -1,9 +1,9 @@
 use iced::Alignment;
-use iced::Column;
+use iced::widget::Column;
 use iced::Element;
 
 use iced::Length;
-use iced::Text;
+use iced::widget::Text;
 use iced::alignment::Vertical;
 use surface_dial_rs::events::{DialEvent, DialDirection, TopLevelEvent};
 
@@ -46,7 +46,7 @@ impl DialView for InfoView {
         ScreenCommand::None
     }
 
-    fn view(&mut self) -> Element<Message> {
+    fn view(&self) -> Element<Message> {
         let title = self.title.clone();
         let message = self.message.clone();
 
@@ -56,7 +56,7 @@ impl DialView for InfoView {
             .padding(20)
             .align_items(Alignment::Center)
             .push(Text::new(title).size(30))
-            .push(Text::new("\n").size(22).height(Length::Shrink))
+            .push(Text::new("\n\n\n0").size(40).height(Length::Shrink))
             .push(Text::new(message).size(22).height(Length::Fill))
             .into()
     }

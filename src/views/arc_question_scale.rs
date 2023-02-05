@@ -21,12 +21,9 @@ use crate::views::DialView;
 use super::ExperimentData;
 use super::Printable;
 
-const MIN_VALUE: i32 = -1;
-const MAX_VALUE: i32 = 1;
-
 struct DataStructure {
     id: usize,
-    counterbalance: bool,
+    name: String,
     final_decision: i32,
     final_decision_timestamp: u128,
     data_points: Vec<DataPoint>
@@ -39,7 +36,7 @@ struct DataPoint {
 
 impl ExperimentData for DataStructure {
     fn name(&self) -> String {
-        format!("lie_truth_dichotomous_{}", self.id).to_string()
+        format!("{}_{}", self.name, self.id).to_string()
     }
 
     fn headers(&self) -> String {
@@ -54,35 +51,20 @@ impl ExperimentData for DataStructure {
 impl Printable for DataStructure {
     fn to_csv(&self) -> String {
         let mut final_string: String = "".to_string();
-        let multiplier = if self.counterbalance {
-            -1
-        } else {
-            1
-        };
-
-        // Limit the output to 0 (lie) and 1 (truth)
-        let mut output_decision = self.final_decision * multiplier;
-        if output_decision < 0 {
-            output_decision = 0;
-        }
 
         for point in self.data_points.iter() {
-            let mut decision = point.value * multiplier;
-            if decision < 0 {
-                decision = 0;
-            }
-            final_string.push_str(format!("decision,{},{}\n", point.timestamp, decision).as_str());
+            final_string.push_str(format!("decision,{},{}\n", point.timestamp, point.value).as_str());
         }
-        final_string.push_str(format!("final,{},{}\n", self.final_decision_timestamp, output_decision).as_str());
-        
+        final_string.push_str(format!("final,{},{}\n", self.final_decision_timestamp, self.final_decision).as_str());
+
         final_string
     }
 }
 
-pub struct ArcDichotomousView {
+pub struct ArcQuestionScaleView {
     id: usize,
-    counterbalance: bool,
     arc_input: ArcInput,
+    question: String,
     value: i32,
     min_value: i32,
     max_value: i32,
@@ -94,39 +76,34 @@ pub struct ArcDichotomousView {
 }
 
 impl DataStructure {
-    pub fn new(id: usize, counterbalance: bool) -> DataStructure {
-        DataStructure { 
+    pub fn new(id: usize, name: String) -> DataStructure {
+        DataStructure {
             id,
-            counterbalance,
+            name,
             final_decision: 0,
             final_decision_timestamp: 0,
-            data_points: Vec::new() 
+            data_points: Vec::new()
         }
     }
 }
 
-impl ArcDichotomousView {
-    pub fn new(id: usize, counterbalance: bool) -> ArcDichotomousView {
-        let mut arc_input = ArcInput::new(MIN_VALUE, MAX_VALUE, 0, 0, 90.0);
-        if counterbalance {
-            arc_input.set_right_label("Lie".to_string());
-            arc_input.set_left_label("Truth".to_string());
-        } else {
-            arc_input.set_left_label("Lie".to_string());
-            arc_input.set_right_label("Truth".to_string());
-        }
-        
+impl ArcQuestionScaleView {
+    pub fn new(id: usize, name: String, question: String, left_label: String, right_label: String, min: i32, max: i32, initial: i32) -> ArcQuestionScaleView {
+        let mut arc_input = ArcInput::new(min, max, 0, initial, 90.0);
+        arc_input.set_left_label(left_label);
+        arc_input.set_right_label(right_label);
+
         arc_input.scale(2.0);
 
-        ArcDichotomousView {
+        ArcQuestionScaleView {
             id,
-            counterbalance,
             arc_input,
-            value: 0,
-            min_value: MIN_VALUE,
-            max_value: MAX_VALUE,
+            question,
+            value: initial,
+            min_value: min,
+            max_value: max,
             interim_decision: 0,
-            data: DataStructure::new(id, counterbalance),
+            data: DataStructure::new(id, name),
             timer: None,
             finished: false,
             show_time: SystemTime::now()
@@ -134,7 +111,7 @@ impl ArcDichotomousView {
     }
 }
 
-impl DialView for ArcDichotomousView {
+impl DialView for ArcQuestionScaleView {
     fn init(&mut self) {
         self.value = 0;
         self.arc_input.set_value(0);
@@ -149,13 +126,13 @@ impl DialView for ArcDichotomousView {
                 if let TopLevelEvent::DialEvent(DialEvent::Rotate { direction, velocity: _ }) = &e {
                     match direction {
                         DialDirection::Clockwise => {
-                            if !self.arc_input.is_disabled() && self.value + 1 <= self.max_value { 
-                                self.value = self.max_value;
+                            if !self.arc_input.is_disabled() && self.value + 1 <= self.max_value {
+                                self.value += 1;
                             }
                         },
                         DialDirection::Counterclockwise => {
-                            if !self.arc_input.is_disabled() && self.value > self.min_value { 
-                                self.value = self.min_value;
+                            if !self.arc_input.is_disabled() && self.value - 1 >= self.min_value {
+                                self.value -= 1;
                             }
                         }
                     }
@@ -170,9 +147,9 @@ impl DialView for ArcDichotomousView {
 
                 if let TopLevelEvent::DialEvent(DialEvent::Button { pressed }) = &e {
                     if *pressed {
-                        if !self.finished && self.value != 0 {
+                        if !self.finished {
                             let end_timestamp = SystemTime::now().duration_since(self.show_time).expect("Could not get timestamp for final decision");
-                            
+
                             self.data.final_decision = self.value;
                             self.data.final_decision_timestamp = end_timestamp.as_millis();
                             self.timer = None;
@@ -218,7 +195,7 @@ impl DialView for ArcDichotomousView {
             .height(Length::Fill)
             .padding(40)
             .align_items(Alignment::Center)
-            .push(Text::new("Was the person lying or telling the truth?").size(30))
+            .push(Text::new(self.question.clone()).size(30))
             .push(self.arc_input.view())
             .push(Text::new(if self.finished { "Press down on the dial to continue" } else { "" }).size(25))
             .into()
@@ -234,7 +211,7 @@ impl DialView for ArcDichotomousView {
     }
 
     fn hide(&mut self) {
-        
+
     }
 
     fn data(&self) -> Option<Box<&dyn super::ExperimentData>> {
@@ -243,7 +220,7 @@ impl DialView for ArcDichotomousView {
 
     fn arc_settings(&self) -> Option<super::ArcSettings> {
         Some(super::ArcSettings {
-            divisions: 10
+            divisions: 80
         })
     }
 

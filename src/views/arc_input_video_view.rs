@@ -1,13 +1,13 @@
-use std::borrow::BorrowMut;
+use std::borrow::{Borrow, BorrowMut};
 use std::env::current_exe;
 use std::time::Instant;
 
 use iced::Alignment;
-use iced::Column;
+use iced::widget::Column;
 use iced::Element;
 
 use iced::Length;
-use iced::Text;
+use iced::widget::Text;
 use iced_video_player::VideoPlayer;
 use url::Url;
 
@@ -107,7 +107,7 @@ impl DataStructure {
 
 impl ArcInputVideoView {
     pub fn new(id: usize, path: String, counterbalance: bool, allow_lockin: bool) -> ArcInputVideoView {
-        let mut arc_input = ArcInput::new(MIN_VALUE, MAX_VALUE, 0, 90.0);
+        let mut arc_input = ArcInput::new(MIN_VALUE, MAX_VALUE, 0, 0, 90.0);
         if counterbalance {
             arc_input.set_right_label("Lie".to_string());
             arc_input.set_left_label("Truth".to_string());
@@ -245,7 +245,7 @@ impl DialView for ArcInputVideoView {
         ScreenCommand::None
     }
 
-    fn view(&mut self) -> Element<Message> {
+    fn view(&self) -> Element<Message> {
         let mut column = Column::new()
             .width(Length::Fill)
             .height(Length::Fill)
@@ -253,7 +253,7 @@ impl DialView for ArcInputVideoView {
             .align_items(Alignment::Center)
             .push(Text::new("Is the person lying or telling the truth?").size(30));
 
-            if let Some(v) = self.video.borrow_mut() { 
+            if let Some(v) = self.video.borrow() {
                 column = column.push(v.frame_view().width(Length::Units(640)).height(Length::Units(360)));
             } else { 
                 column = column.push(Text::new("Video is loading"));

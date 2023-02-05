@@ -1,10 +1,9 @@
 use iced::alignment::Horizontal;
-use iced::canvas::path::arc::Elliptical;
-use iced::canvas::{
-    self, Cache, Canvas, Cursor, Geometry, LineCap, Stroke,
-};
-use iced::{Element, Vector, Column, Row, Text};
-use iced::canvas::path::{Builder};
+use iced::widget::canvas::path::arc::Elliptical;
+use iced::widget::canvas::{self, Cache, Canvas, Cursor, Geometry, LineCap, Stroke, Style};
+use iced::{Element, Theme, Vector};
+use iced::widget::{Column, Row, Text};
+use iced::widget::canvas::path::{Builder};
 use iced_native::{Color, Length, Point, Rectangle};
 
 use crate::Message;
@@ -13,6 +12,7 @@ pub struct ArcInput {
     value: i32,
     min_value: i32,
     max_value: i32,
+    mid_point: i32,
     left_label: String,
     right_label: String,
     radius: f32,
@@ -22,11 +22,12 @@ pub struct ArcInput {
 }
 
 impl ArcInput {
-    pub fn new(min: i32, max: i32, initial: i32, radius: f32) -> ArcInput {
+    pub fn new(min: i32, max: i32, midpoint: i32, initial: i32, radius: f32) -> ArcInput {
         ArcInput {
             value: initial,
             min_value: min,
             max_value: max,
+            mid_point: midpoint,
             left_label: "".to_string(),
             right_label: "".to_string(),
             radius,
@@ -36,7 +37,7 @@ impl ArcInput {
         }
     }
 
-    pub fn view(&mut self) -> Element<Message> {
+    pub fn view(&self) -> Element<Message> {
         let rad = 1.2 * self.radius * self.scale;
         let scale = self.scale;
         let left_label = self.left_label.clone();
@@ -86,8 +87,12 @@ impl ArcInput {
 }
 
 impl canvas::Program<Message> for ArcInput {
+    type State = ();
+
     fn draw(
         &self,
+        _state: &Self::State,
+        _theme: &Theme,
         bounds: Rectangle,
         _cursor: Cursor,
     ) -> Vec<Geometry> {
@@ -111,21 +116,22 @@ impl canvas::Program<Message> for ArcInput {
                 self.value
             };
 
-            let proportion = (((safe_value as f32 + self.max_value as f32) / (self.max_value - self.min_value) as f32) * 2.0) - 1.0;
+            let proportion = ((safe_value as f32 + self.mid_point as f32) / (self.max_value - self.min_value) as f32 * 2.0);
+            let start_angle = 0.785 + (2.356 * (((self.mid_point as f32 - self.min_value as f32) / (self.max_value - self.min_value) as f32)) * 2.0);
 
             fill_build.ellipse(Elliptical {
                 center: Point::new(bounds.width/2.0, bounds.height/2.0),
                 radii: Vector::new(self.scale * self.radius/2.0, self.scale * self.radius/2.0),
                 rotation: 1.57,
-                start_angle: 3.141,
-                end_angle: 3.141 + (2.356 * proportion),
+                start_angle,
+                end_angle: start_angle + (2.356 * proportion),
             });
 
             let arc_path = arc_build.build();
             let fill_path = fill_build.build();
 
             let arc_stroke = Stroke {
-                color: Color::from_rgb(0.8, 0.8, 0.8),
+                style: Style::Solid(Color::from_rgb(0.8, 0.8, 0.8)),
                 width: 2.0,
                 line_cap: LineCap::Round,
                 ..Stroke::default()
@@ -146,7 +152,7 @@ impl canvas::Program<Message> for ArcInput {
             };
 
             let fill_stroke = Stroke {
-                color: fill_color,
+                style: Style::Solid(fill_color),
                 width: 2.0,
                 line_cap: LineCap::Round,
                 ..Stroke::default()

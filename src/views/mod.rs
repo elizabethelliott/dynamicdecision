@@ -34,7 +34,7 @@ pub trait DialView {
     fn init(&mut self);
     fn update(&mut self, msg: Option<TopLevelEvent>) -> ScreenCommand;
     fn iced_input(&mut self, msg: Message) -> ScreenCommand;
-    fn view(&mut self) -> Element<Message>;
+    fn view(&self) -> Element<Message>;
     fn show(&mut self);
     fn hide(&mut self);
     fn data(&self) -> Option<Box<&dyn ExperimentData>>;
@@ -49,3 +49,5 @@ pub mod multichoice_view;
 pub mod textinput_view;
 pub mod image_view;
 pub mod video_view;
+pub mod lock_in_video_view;
+pub mod arc_question_scale;

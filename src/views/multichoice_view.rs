@@ -1,13 +1,9 @@
 use iced::Alignment;
-use iced::Button;
-use iced::Column;
+use iced::widget::{Button, Column, Row, Radio, Text};
 use iced::Element;
 
 use iced::Length;
-use iced::Radio;
-use iced::Text;
 use iced::alignment::Vertical;
-use iced::button::State;
 use surface_dial_rs::events::{DialEvent, DialDirection, TopLevelEvent};
 
 use crate::Message;
@@ -59,7 +55,6 @@ pub struct MultiChoiceView {
     message: String,
     choices: Vec<(u32, String)>,
     current_choice: Option<u32>,
-    button_state: State,
     data: ChoiceData,
 }
 
@@ -70,7 +65,6 @@ impl MultiChoiceView {
             message,
             choices,
             current_choice: None,
-            button_state: State::new(),
             data: ChoiceData::new(name),
         }
     }
@@ -79,7 +73,6 @@ impl MultiChoiceView {
 impl DialView for MultiChoiceView {
     fn init(&mut self) {
         self.current_choice = None;
-        self.button_state = State::new();
         self.data = ChoiceData::new(self.data.name.clone());
     }
 
@@ -87,7 +80,7 @@ impl DialView for MultiChoiceView {
         ScreenCommand::None
     }
 
-    fn view(&mut self) -> Element<Message> {
+    fn view(&self) -> Element<Message> {
         let title = self.title.clone();
         let message = self.message.clone();
 
@@ -107,7 +100,7 @@ impl DialView for MultiChoiceView {
 
         column = column.push(Text::new("\n").size(22).height(Length::Fill));
 
-        let mut next_button = Button::new(&mut self.button_state, Text::new("Next"));
+        let mut next_button = Button::new(Text::new("Next"));
 
         if let Some(_c) = self.current_choice {
             next_button = next_button.on_press(Message::ButtonPressed);

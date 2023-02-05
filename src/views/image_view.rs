@@ -1,10 +1,8 @@
 use iced::Alignment;
-use iced::Column;
+use iced::widget::{Column, Image, Text};
 use iced::Element;
 
-use iced::Image;
 use iced::Length;
-use iced::Text;
 use iced_native::image;
 use surface_dial_rs::events::{DialEvent, TopLevelEvent};
 
@@ -47,7 +45,7 @@ impl DialView for ImageView {
         ScreenCommand::None
     }
 
-    fn view(&mut self) -> Element<Message> {
+    fn view(&self) -> Element<Message> {
         let title = self.title.clone();
         let path = self.path.clone();
 

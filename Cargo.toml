@@ -8,8 +8,8 @@ edition = "2021"
 [dependencies]
 surface-dial-rs = { path = "../surface-dial-rs" }
 iced_video_player = { path = "../iced_video_player" }
-iced = { version = "0.4.2", features = ["canvas", "tokio", "debug"] }
-iced_native = "0.5.1"
+iced = { version = "0.7.0", features = ["canvas", "tokio", "debug"] }
+iced_native = "0.8"
 hidapi = { version = "1.2.3", default-features = false, features = ["linux-shared-hidraw"] }
 flume = "0.10.12"
 url = "2.2.2"

@@ -120,6 +120,7 @@ if __name__ == '__main__':
                             
                             if not Path(d + '/' + dichotomous_file_path).exists():
                                 print(f'Missing dichotomous file: {dichotomous_file_path}!')
+                                continue
 
                             with open(d + '/' + dichotomous_file_path, 'r') as di_csv_file:
                                 di_csv_data = csv.DictReader(di_csv_file)

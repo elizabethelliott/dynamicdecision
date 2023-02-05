@@ -1,13 +1,9 @@
 use iced::Alignment;
-use iced::Button;
-use iced::Column;
+use iced::widget::{Button, Column, Row, Text, TextInput};
 use iced::Element;
 
 use iced::Length;
-use iced::Row;
-use iced::Text;
 
-use iced::TextInput;
 use iced_native::Widget;
 use surface_dial_rs::events::TopLevelEvent;
 
@@ -66,8 +62,6 @@ pub struct TextInputView {
     label: String,
     hint: String,
     text_value: String,
-    text_state: iced::text_input::State,
-    button_state: iced::button::State,
     data: TextData,
 }
 
@@ -79,8 +73,6 @@ impl TextInputView {
             label,
             hint,
             text_value: "".to_string(),
-            text_state: iced::text_input::State::new(),
-            button_state: iced::button::State::new(),
             data: TextData::new(name.clone())
         }
     }
@@ -89,8 +81,6 @@ impl TextInputView {
 impl DialView for TextInputView {
     fn init(&mut self) {
         self.text_value = "".to_string();
-        self.text_state = iced::text_input::State::new();
-        self.button_state = iced::button::State::new();
         self.data = TextData::new(self.data.name.clone());
     }
 
@@ -98,7 +88,7 @@ impl DialView for TextInputView {
         ScreenCommand::None
     }
 
-    fn view(&mut self) -> Element<Message> {
+    fn view(&self) -> Element<Message> {
         let mut column = Column::new()
             .width(Length::Fill)
             .height(Length::Fill)
@@ -108,11 +98,11 @@ impl DialView for TextInputView {
             .push(Text::new("\n").size(22).height(Length::Units(10)))
             .push(Text::new(self.label.clone()).size(18).height(Length::Shrink))
             .push(Text::new("\n").size(22).height(Length::Units(10)))
-            .push(TextInput::new(&mut self.text_state, self.hint.clone().as_str(), &self.text_value, Message::TextInputChanged).padding(7).width(Length::Units(380)));
+            .push(TextInput::new(self.hint.clone().as_str(), &self.text_value, Message::TextInputChanged).padding(7).width(Length::Units(380)));
 
         column = column.push(Text::new("\n").size(22).height(Length::Fill));
 
-        let mut next_button = Button::new(&mut self.button_state, Text::new("Next"));
+        let mut next_button = Button::new(Text::new("Next"));
 
         if !self.text_value.is_empty() {
             next_button = next_button.on_press(Message::ButtonPressed);

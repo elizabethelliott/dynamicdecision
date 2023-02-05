@@ -15,25 +15,68 @@ use surface_dial_rs::events::{DialEvent, TopLevelEvent};
 use crate::Message;
 use crate::arc_input::ArcInput;
 
-use crate::views::ScreenCommand;
+use crate::views::{ExperimentData, Printable, ScreenCommand};
 use crate::views::DialView;
 
-pub struct VideoView {
+struct DataStructure {
+    id: usize,
+    path: String,
+    final_decision_timestamp: u128,
+}
+
+impl DataStructure {
+    pub fn new(id: usize, path: String) -> DataStructure {
+        DataStructure {
+            id,
+            path,
+            final_decision_timestamp: 0,
+        }
+    }
+}
+
+impl ExperimentData for DataStructure {
+    fn name(&self) -> String {
+        format!("lie_truth_lock_in_{}", self.id).to_string()
+    }
+
+    fn headers(&self) -> String {
+        "type,timestamp,value,velocity".to_string()
+    }
+
+    fn data(&self) -> Box<&dyn Printable> {
+        Box::new(self)
+    }
+}
+
+impl Printable for DataStructure {
+    fn to_csv(&self) -> String {
+        let mut final_string: String = "".to_string();
+
+        final_string.push_str(format!("path,0,{},0.0\n", self.path).as_str());
+        final_string.push_str(format!("final,{},0,0.0\n", self.final_decision_timestamp).as_str());
+
+        final_string
+    }
+}
+
+pub struct LockInVideoView {
     path: String,
     video: Option<VideoPlayer>,
+    data: DataStructure,
     finished: bool,
 }
 
-impl VideoView {
-    pub fn new(path: String) -> VideoView {
-        VideoView {
+impl LockInVideoView {
+    pub fn new(id: usize, path: String) -> LockInVideoView {
+        LockInVideoView {
             path: path.clone(),
+            data: DataStructure::new(id, path),
             finished: false,
             video: None }
     }
 }
 
-impl DialView for VideoView {
+impl DialView for LockInVideoView {
     fn init(&mut self) {
 
     }
@@ -44,7 +87,12 @@ impl DialView for VideoView {
 
                 if let TopLevelEvent::DialEvent(DialEvent::Button { pressed }) = &e {
                     if *pressed {
-                        if self.finished {
+                        if !self.finished {
+                            self.data.final_decision_timestamp = self.video.as_mut().expect("No video is playing").position().as_millis();
+                            self.video.as_mut().expect("No video is playing").set_paused(true);
+
+                            self.finished = true;
+                        } else {
                             return ScreenCommand::NextScreen(None);
                         }
                     }
@@ -73,15 +121,15 @@ impl DialView for VideoView {
             .align_items(Alignment::Center)
             .push(Text::new("Please watch this video").size(30));
 
-            if let Some(v) = self.video.borrow() {
-                column = column.push(v.frame_view().width(Length::Units(640)).height(Length::Units(360)));
-            } else { 
-                column = column.push(Text::new("Video is loading"));
-            }
+        if let Some(v) = self.video.borrow() {
+            column = column.push(v.frame_view().width(Length::Units(640)).height(Length::Units(360)));
+        } else {
+            column = column.push(Text::new("Video is loading"));
+        }
 
-            column = column.push(Text::new(if self.finished { "Press down on the dial to continue" } else { "" }).size(18));
-            
-            column.into()
+        column = column.push(Text::new(if self.finished { "Press down on the dial to continue" } else { "" }).size(18));
+
+        column.into()
     }
 
     fn show(&mut self) {

@@ -1,15 +1,12 @@
 use std::collections::HashMap;
 
 use iced::Alignment;
-use iced::Button;
-use iced::Column;
+use iced::widget::{Button, Column, Text, Row};
 use iced::Element;
 
 use iced::Length;
-use iced::Row;
-use iced::Text;
 
-use iced::TextInput;
+use iced::widget::TextInput;
 use surface_dial_rs::events::TopLevelEvent;
 
 use crate::Message;
@@ -19,16 +16,12 @@ use crate::views::DialView;
 
 pub struct ParticipantIdView {
     text_value: String,
-    text_state: iced::text_input::State,
-    button_state: iced::button::State,
 }
 
 impl ParticipantIdView {
     pub fn new() -> ParticipantIdView {
         ParticipantIdView {
             text_value: "".to_string(),
-            text_state: iced::text_input::State::new(),
-            button_state: iced::button::State::new(),
         }
     }
 }
@@ -36,15 +29,13 @@ impl ParticipantIdView {
 impl DialView for ParticipantIdView {
     fn init(&mut self) {
         self.text_value = String::default();
-        self.text_state = iced::text_input::State::new();
-        self.button_state = iced::button::State::new();
     }
 
     fn update(&mut self, _msg: Option<TopLevelEvent>) -> ScreenCommand {
         ScreenCommand::None
     }
 
-    fn view(&mut self) -> Element<Message> {
+    fn view(&self) -> Element<Message> {
 
         let mut column = Column::new()
             .width(Length::Fill)
@@ -53,7 +44,7 @@ impl DialView for ParticipantIdView {
             .align_items(Alignment::Center)
             .push(Text::new("Enter the participant ID to begin").size(30));
 
-        let mut submit_button = Button::new(&mut self.button_state, Text::new("Submit"));
+        let mut submit_button = Button::new(Text::new("Submit"));
 
         if self.text_value.len() > 0 {
             submit_button = submit_button.on_press(Message::ButtonPressed);
@@ -62,7 +53,7 @@ impl DialView for ParticipantIdView {
         column = column.push(Row::new()
             .width(Length::Fill)
             .padding(40)
-            .push(TextInput::new(&mut self.text_state, "Enter participant id...", &self.text_value, Message::TextInputChanged) .padding(7))
+            .push(TextInput::new("Enter participant id...", &self.text_value, Message::TextInputChanged) .padding(7))
             .push(submit_button));
             
         column.into()

@@ -12,7 +12,7 @@ extern crate yaml_rust;
 
 use native_dialog::{MessageDialog, MessageType};
 
-use iced::{executor, time, window, Application, Command, Element, Settings, Subscription};
+use iced::{executor, time, window, Application, Command, Element, Settings, Subscription, Theme};
 use iced::keyboard::{self, KeyCode};
 use views::image_view::ImageView;
 use views::participant_id_view::ParticipantIdView;
@@ -32,6 +32,7 @@ use crate::views::ScreenCommand;
 
 use crate::data::write_data_file;
 use crate::data::partipant_data::ParticipantData;
+use crate::views::arc_question_scale::ArcQuestionScaleView;
 
 const VIDEO_NAMES: [&'static str; 2] = [
     "alibi1_control.webm", // Lie
@@ -92,6 +93,7 @@ impl Application for DynBaseProgram<'_> {
     type Executor = executor::Default;
     type Message = Message;
     type Flags = ();
+    type Theme = Theme;
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
         let yaml_string = fs::read_to_string("config.yaml").expect("Could not load config file");
@@ -136,7 +138,7 @@ impl Application for DynBaseProgram<'_> {
             Box::new(ImageView::new("Consent".to_string(), "images/consent-1.png".to_string())),
             Box::new(ImageView::new("Consent".to_string(), "images/consent-2.png".to_string())),
             Box::new(ImageView::new("Consent".to_string(), "images/consent-3.png".to_string())),
-            Box::new(VideoView::new("videos/tutorial.webm".to_string())),
+            //Box::new(VideoView::new("videos/tutorial.webm".to_string())),
         ];
 
         let participant_screen: Box<dyn views::DialView> = Box::new(ParticipantIdView::new());
@@ -365,6 +367,9 @@ Thank you again for participating!".to_string())),
                                         if condition == "dichotomous" {
                                             self.screens.push(Box::new(ArcDichotomousView::new(i, counterbalance)));
                                         }
+
+                                        self.screens.push(Box::new(ArcQuestionScaleView::new(i, "confidence".to_string(), "How confident are you in your decision?".to_string(), "0".to_string(), "100".to_string(), 0, 100, 0)));
+                                        self.screens.push(Box::new(InfoView::new("Reminder".to_string(), "Remember, be as quick and accurate as possible. Please keep your hand on the dial at all times.".to_string())))
                                     }
 
                                     self.participant_screen.hide();
@@ -505,7 +510,7 @@ Thank you again for participating!".to_string())),
         ])
     }
 
-    fn view(&mut self) -> Element<Message> {
+    fn view(&self) -> Element<Message> {
         match self.app_state {
             AppState::Participant => return self.participant_screen.view(),
             AppState::Consent => return self.consent_screens[self.current_screen].view(),
@@ -516,9 +521,9 @@ Thank you again for participating!".to_string())),
         }
     }
 
-    fn mode(&self) -> window::Mode {
-        window::Mode::Fullscreen
-    }
+    // fn mode(&self) -> window::Mode {
+    //     window::Mode::Fullscreen
+    // }
 
     fn scale_factor(&self) -> f64 {
         if self.scaling_override > 0.0 {
