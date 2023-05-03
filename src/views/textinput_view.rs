@@ -7,6 +7,8 @@ use iced::Length;
 use iced_native::Widget;
 use surface_dial_rs::events::TopLevelEvent;
 
+use regex::Regex;
+
 use crate::Message;
 
 use crate::views::ScreenCommand;
@@ -63,6 +65,7 @@ pub struct TextInputView {
     hint: String,
     text_value: String,
     data: TextData,
+    alphanum_regex: Regex,
 }
 
 impl TextInputView {
@@ -73,7 +76,8 @@ impl TextInputView {
             label,
             hint,
             text_value: "".to_string(),
-            data: TextData::new(name.clone())
+            data: TextData::new(name.clone()),
+            alphanum_regex: Regex::new(r"[a-zA-z0-9,\. !?']*").unwrap()
         }
     }
 }
@@ -141,7 +145,7 @@ impl DialView for TextInputView {
 
                 match self.input_type {
                     TextInputType::Alphanumeric => {
-                        valid_input = s.chars().all(char::is_alphanumeric);
+                        valid_input = self.alphanum_regex.is_match(s.as_str());
                     },
                     TextInputType::Number => {
                         valid_input = s.chars().all(char::is_numeric);

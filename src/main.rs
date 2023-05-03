@@ -36,8 +36,8 @@ use crate::views::arc_question_scale::ArcQuestionScaleView;
 use crate::views::lock_in_video_view::LockInVideoView;
 
 const VIDEO_NAMES: [&'static str; 2] = [
-    "alibi1_control.webm", // Lie
-    "alibi2_control.webm"  // Truth
+    "alibi1_control_trimmed.webm", // Lie
+    "alibi2_control_trimmed.webm"  // Truth
 ];
 
 enum AppState {
@@ -93,14 +93,14 @@ impl DynBaseProgram<'_> {
 impl Application for DynBaseProgram<'_> {
     type Executor = executor::Default;
     type Message = Message;
-    type Flags = ();
     type Theme = Theme;
+    type Flags = ();
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
         let yaml_string = fs::read_to_string("config.yaml").expect("Could not load config file");
         let yaml_docs = YamlLoader::load_from_str(yaml_string.as_str()).expect("Invalid YAML in config.yaml");
 
-        let yaml_config = &yaml_docs[0];
+        let yaml_config: &Yaml = &yaml_docs[0];
 
         let scaling_override = if !yaml_config["config"]["scaling"].is_badvalue() {
             yaml_config["config"]["scaling"].as_f64().unwrap()
@@ -139,14 +139,16 @@ impl Application for DynBaseProgram<'_> {
             Box::new(ImageView::new("Consent".to_string(), "images/consent-1.png".to_string())),
             Box::new(ImageView::new("Consent".to_string(), "images/consent-2.png".to_string())),
             Box::new(ImageView::new("Consent".to_string(), "images/consent-3.png".to_string())),
-            //Box::new(VideoView::new("videos/tutorial.webm".to_string())),
+            Box::new(VideoView::new("videos/tutorial.webm".to_string())),
         ];
 
         let participant_screen: Box<dyn views::DialView> = Box::new(ParticipantIdView::new());
 
         let all_instruction_screens: Vec<Box<dyn views::DialView>> = vec![
-            Box::new(ImageView::new("Instructions".to_string(), "images/dynamic-1.png".to_string())),
-            Box::new(ImageView::new("Instructions".to_string(), "images/dichotomous-1.png".to_string())),
+            Box::new(ImageView::new("Instructions".to_string(), "images/throughout-quick.png".to_string())),
+            Box::new(ImageView::new("Instructions".to_string(), "images/throughout-regular.png".to_string())),
+            Box::new(ImageView::new("Instructions".to_string(), "images/final-quick.png".to_string())),
+            Box::new(ImageView::new("Instructions".to_string(), "images/final-regular.png".to_string())),
         ];
 
         let instruction_screen: usize = 0;
@@ -204,6 +206,209 @@ impl Application for DynBaseProgram<'_> {
                     (13, "Other".to_string()),
                     (14, "Prefer not to disclose".to_string()),
                 ]
+            )),
+            Box::new(TextInputView::new(
+                TextInputType::Number,
+                "questionnaire_1white_lies".to_string(),
+                "Survey".to_string(),
+                "On average, how many times a day do you tell a little white lie? (0, 1, 2, 3, 4, 5, 10, 15, 20, 25+)".to_string(),
+                "Amount...".to_string()
+            )),
+            Box::new(TextInputView::new(
+                TextInputType::Number,
+                "questionnaire_2big_lies".to_string(),
+                "Survey".to_string(),
+                "On average, how many times a day do you tell a big lie? (0, 1, 2, 3, 4, 5, 10, 15, 20, 25+)".to_string(),
+                "Amount...".to_string()
+            )),
+            Box::new(MultiChoiceView::new(
+                "questionnaire_3successful_liar".to_string(),
+                "Survey".to_string(),
+                "How successful of a liar do you think you are?".to_string(),
+                vec![
+                    (1, "1 (Not at all Successful)".to_string()),
+                    (2, "2".to_string()),
+                    (3, "3".to_string()),
+                    (4, "4 (Somewhat Successful)".to_string()),
+                    (5, "5".to_string()),
+                    (6, "6".to_string()),
+                    (7, "7 (Very Successful)".to_string()),
+                ]
+            )),
+            Box::new(MultiChoiceView::new(
+                "questionnaire_4discovered_liar".to_string(),
+                "Survey".to_string(),
+                "When you tell lies, how often are they discovered?".to_string(),
+                vec![
+                    (1, "1 (Always Discovered)".to_string()),
+                    (2, "2".to_string()),
+                    (3, "3".to_string()),
+                    (4, "4 (Sometimes Discovered)".to_string()),
+                    (5, "5".to_string()),
+                    (6, "6".to_string()),
+                    (7, "7 (Never Discovered)".to_string()),
+                ]
+            )),
+            Box::new(MultiChoiceView::new(
+                "questionnaire_5lying_ability".to_string(),
+                "Survey".to_string(),
+                "How confident are you in your lying ability?".to_string(),
+                vec![
+                    (1, "1 (Not at all Confident)".to_string()),
+                    (2, "2".to_string()),
+                    (3, "3".to_string()),
+                    (4, "4 (Somewhat Confident)".to_string()),
+                    (5, "5".to_string()),
+                    (6, "6".to_string()),
+                    (7, "7 (Very Confident)".to_string()),
+                ]
+            )),
+            Box::new(MultiChoiceView::new(
+                "questionnaire_6honesty".to_string(),
+                "Survey".to_string(),
+                "How honest of a person do you think you are?".to_string(),
+                vec![
+                    (1, "1 (Not at all Honest)".to_string()),
+                    (2, "2".to_string()),
+                    (3, "3".to_string()),
+                    (4, "4 (Somewhat Honest)".to_string()),
+                    (5, "5".to_string()),
+                    (6, "6".to_string()),
+                    (7, "7 (Very Honest)".to_string()),
+                ]
+            )),
+            Box::new(MultiChoiceView::new(
+                "questionnaire_7trustworthy".to_string(),
+                "Survey".to_string(),
+                "How trustworthy of a person do you think you are?".to_string(),
+                vec![
+                    (1, "1 (Not at all Trustworthy)".to_string()),
+                    (2, "2".to_string()),
+                    (3, "3".to_string()),
+                    (4, "4 (Somewhat Trustworthy)".to_string()),
+                    (5, "5".to_string()),
+                    (6, "6".to_string()),
+                    (7, "7 (Very Trustworthy)".to_string()),
+                ]
+            )),
+            Box::new(MultiChoiceView::new(
+                "questionnaire_8attractive".to_string(),
+                "Survey".to_string(),
+                "How attractive of a person do you think you are?".to_string(),
+                vec![
+                    (1, "1 (Not at all Attractive)".to_string()),
+                    (2, "2".to_string()),
+                    (3, "3".to_string()),
+                    (4, "4 (Somewhat Attractive)".to_string()),
+                    (5, "5".to_string()),
+                    (6, "6".to_string()),
+                    (7, "7 (Very Attractive)".to_string()),
+                ]
+            )),
+            Box::new(MultiChoiceView::new(
+                "questionnaire_9success_detecting".to_string(),
+                "Survey".to_string(),
+                "How successful are you at detecting lies?".to_string(),
+                vec![
+                    (1, "1 (Not at all Successful)".to_string()),
+                    (2, "2".to_string()),
+                    (3, "3".to_string()),
+                    (4, "4 (Somewhat Successful)".to_string()),
+                    (5, "5".to_string()),
+                    (6, "6".to_string()),
+                    (7, "7 (Very Successful)".to_string()),
+                ]
+            )),
+            Box::new(MultiChoiceView::new(
+                "questionnaire_10confidence_detecting".to_string(),
+                "Survey".to_string(),
+                "How confident are you in your lie detection ability?".to_string(),
+                vec![
+                    (1, "1 (Not at all Confident)".to_string()),
+                    (2, "2".to_string()),
+                    (3, "3".to_string()),
+                    (4, "4 (Somewhat Confident)".to_string()),
+                    (5, "5".to_string()),
+                    (6, "6".to_string()),
+                    (7, "7 (Very Confident)".to_string()),
+                ]
+            )),
+            Box::new(MultiChoiceView::new(
+                "questionnaire_11dial_easiness".to_string(),
+                "Survey".to_string(),
+                "How easy was it to use the dial?".to_string(),
+                vec![
+                    (1, "1 (Not at all Easy)".to_string()),
+                    (2, "2".to_string()),
+                    (3, "3".to_string()),
+                    (4, "4 (Somewhat Easy)".to_string()),
+                    (5, "5".to_string()),
+                    (6, "6".to_string()),
+                    (7, "7 (Extremely Easy)".to_string()),
+                ]
+            )),
+            Box::new(MultiChoiceView::new(
+                "questionnaire_12dial_quickness".to_string(),
+                "Survey".to_string(),
+                "Did you feel that the dial helped you make your decision quickly?".to_string(),
+                vec![
+                    (1, "1 (Not at all Quickly)".to_string()),
+                    (2, "2".to_string()),
+                    (3, "3".to_string()),
+                    (4, "4 (Somewhat Quickly)".to_string()),
+                    (5, "5".to_string()),
+                    (6, "6".to_string()),
+                    (7, "7 (Extremely Quickly)".to_string()),
+                ]
+            )),
+            Box::new(MultiChoiceView::new(
+                "questionnaire_13dial_concentration".to_string(),
+                "Survey".to_string(),
+                "Did you feel that the dial helped you concentrate on the decision?".to_string(),
+                vec![
+                    (1, "1 (Not at all Helped Concentrate)".to_string()),
+                    (2, "2".to_string()),
+                    (3, "3".to_string()),
+                    (4, "4 (Somewhat Helped Concentrate)".to_string()),
+                    (5, "5".to_string()),
+                    (6, "6".to_string()),
+                    (7, "7 (Extremely Helped Concentrate)".to_string()),
+                ]
+            )),
+            Box::new(MultiChoiceView::new(
+                "questionnaire_14dial_thinking".to_string(),
+                "Survey".to_string(),
+                "Did you feel that you were thinking about using the dial more than concentrating on your decision?".to_string(),
+                vec![
+                    (1, "1 (Not at all Concentrated on Dial)".to_string()),
+                    (2, "2".to_string()),
+                    (3, "3".to_string()),
+                    (4, "4 (Somewhat Concentrated on Dial)".to_string()),
+                    (5, "5".to_string()),
+                    (6, "6".to_string()),
+                    (7, "7 (Extremely Concentrated on Dial)".to_string()),
+                ]
+            )),
+            Box::new(MultiChoiceView::new(
+                "questionnaire_15dial_accumulation".to_string(),
+                "Survey".to_string(),
+                "Was the dial useful to accumulate evidence to make a decision?".to_string(),
+                vec![
+                    (1, "1 (Not at all Useful)".to_string()),
+                    (2, "2".to_string()),
+                    (3, "3".to_string()),
+                    (4, "4 (Somewhat Useful)".to_string()),
+                    (5, "5".to_string()),
+                    (6, "6".to_string()),
+                    (7, "7 (Extremely Useful)".to_string()),
+                ]
+            )),
+            Box::new(TextInputView::new(
+                TextInputType::Alphanumeric,
+                "questionnaire_16dial_comments".to_string(),
+                "Survey".to_string(),
+                "Any comments about using the dial and how it helped or hindered your decision-making?".to_string(),
+                "Comments...".to_string()
             )),
             Box::new(InfoView::new("Debriefing".to_string(), "As you read in the consent form, the goal of this study is to learn how people make decisions
 about deception. We are trying to find out whether the types of decision-making tool (i.e., the
@@ -324,10 +529,13 @@ Thank you again for participating!".to_string())),
                                     let condition = info["condition"].as_str().expect(format!("Participant {} is missing the condition parameter", id).as_str()).to_string();
                                     
                                     // Make sure to show the correct instructions
-                                    self.instruction_screen = 0;
-                                    if condition == "final" {
-                                        self.instruction_screen = 1;
-                                    }
+                                    self.instruction_screen = match condition.as_str() {
+                                        "throughout-quick" => 0,
+                                        "throughout-regular" => 1,
+                                        "final-quick" => 2,
+                                        "final-regular" => 3,
+                                        _ => 0
+                                    };
 
                                     // Store the participant info and move on to instructions
                                     self.participant_data = Some(ParticipantData { 
@@ -362,15 +570,18 @@ Thank you again for participating!".to_string())),
 
                                         println!("Video: {}", vid_path);
 
-                                        if condition == "throughout" {
+                                        if condition.starts_with("throughout") {
                                             self.screens.push(Box::new(ArcInputVideoView::new(i, vid_path, counterbalance, true)));
-                                        } else if condition == "final" {
+                                        } else if condition.starts_with("final") {
                                             self.screens.push(Box::new(LockInVideoView::new(i, vid_path)));
-                                            self.screens.push(Box::new(ArcQuestionScaleView::new(i, "lie_truth_lock_in_decision".to_string(), "Was the person lying or telling the truth?".to_string(), "Lie".to_string(), "Truth".to_string(), -10, 10, 0, 60)));
                                         }
 
+                                        self.screens.push(Box::new(ArcQuestionScaleView::new(i, "lie_truth_lock_in_decision".to_string(), "Was the person lying or telling the truth?".to_string(), "Lie".to_string(), "Truth".to_string(), -10, 10, 0, 60)));
                                         self.screens.push(Box::new(ArcQuestionScaleView::new(i, "confidence".to_string(), "How confident are you in your decision?".to_string(), "0".to_string(), "100".to_string(), 0, 100, 0, 80)));
-                                        self.screens.push(Box::new(InfoView::new("Reminder".to_string(), "Remember, be as quick and accurate as possible. Please keep your hand on the dial at all times.".to_string())))
+
+                                        if condition.ends_with("quick") && i < self.num_vids-1 {
+                                            self.screens.push(Box::new(InfoView::new("Reminder".to_string(), "Remember, be as quick and accurate as possible. Please keep your hand on the dial at all times.".to_string())));
+                                        }
                                     }
 
                                     self.participant_screen.hide();
@@ -486,6 +697,17 @@ Thank you again for participating!".to_string())),
         Command::none()
     }
 
+    fn view(&self) -> Element<Message> {
+        match self.app_state {
+            AppState::Participant => return self.participant_screen.view(),
+            AppState::Consent => return self.consent_screens[self.current_screen].view(),
+            AppState::Instructions => return self.all_instruction_screens[self.instruction_screen].view(),
+            AppState::Videos => return self.screens[self.current_screen].view(),
+            AppState::Demographics => return self.demographics_screens[self.current_screen].view(),
+            AppState::Final => return self.final_screen.view(),
+        }
+    }
+
     fn subscription(&self) -> Subscription<Message> {
         use iced_native::event::Event;
 
@@ -509,17 +731,6 @@ Thank you again for participating!".to_string())),
                 }
             })
         ])
-    }
-
-    fn view(&self) -> Element<Message> {
-        match self.app_state {
-            AppState::Participant => return self.participant_screen.view(),
-            AppState::Consent => return self.consent_screens[self.current_screen].view(),
-            AppState::Instructions => return self.all_instruction_screens[self.instruction_screen].view(),
-            AppState::Videos => return self.screens[self.current_screen].view(),
-            AppState::Demographics => return self.demographics_screens[self.current_screen].view(),
-            AppState::Final => return self.final_screen.view(),
-        }
     }
 
     // fn mode(&self) -> window::Mode {

@@ -1,8 +1,10 @@
 PARTICIPANTS = 400
 
 CONDITIONS = [
-    'throughout',
-    'final'
+    'throughout-quick',
+    'final-quick',
+    'throughout-regular',
+    'final-regular'
 ]
 
 print("participants:")
